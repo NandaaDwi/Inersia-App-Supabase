@@ -1,15 +1,40 @@
 import 'package:flutter/material.dart';
+import 'package:hooks_riverpod/hooks_riverpod.dart';
+import 'package:inersia_supabase/config/supabase_config.dart';
+import 'package:inersia_supabase/features/user/mainPage/providers/main_page_provider.dart';
 import 'package:inersia_supabase/models/article_model.dart';
 import 'package:inersia_supabase/utils/dateUtills.dart';
 
-class ArticleCard extends StatelessWidget {
+class ArticleCard extends ConsumerWidget {
   final ArticleModel article;
   final VoidCallback onTap;
 
   const ArticleCard({super.key, required this.article, required this.onTap});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final currentUserId = supabaseConfig.client.auth.currentUser?.id ?? '';
+
+    final likeCountAsync = ref.watch(
+      articleLikeCountStreamProvider(article.id),
+    );
+
+    final likeStatusAsync = ref.watch(
+      cardLikeStatusProvider((article.id, currentUserId)),
+    );
+
+    final likeCount = likeCountAsync.when(
+      data: (c) => c,
+      loading: () => article.likeCount,
+      error: (_, __) => article.likeCount,
+    );
+
+    final isLiked = likeStatusAsync.when(
+      data: (v) => v,
+      loading: () => false,
+      error: (_, __) => false,
+    );
+
     return GestureDetector(
       onTap: onTap,
       child: Container(
@@ -51,6 +76,7 @@ class ArticleCard extends StatelessWidget {
                 ),
               ],
             ),
+
             Padding(
               padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
               child: Column(
@@ -75,6 +101,7 @@ class ArticleCard extends StatelessWidget {
                     ),
                   ),
                   const SizedBox(height: 10),
+
                   Text(
                     article.title,
                     style: const TextStyle(
@@ -87,6 +114,7 @@ class ArticleCard extends StatelessWidget {
                     overflow: TextOverflow.ellipsis,
                   ),
                   const SizedBox(height: 8),
+
                   Text(
                     _extractExcerpt(article.content),
                     style: const TextStyle(
@@ -98,19 +126,32 @@ class ArticleCard extends StatelessWidget {
                     overflow: TextOverflow.ellipsis,
                   ),
                   const SizedBox(height: 14),
+
                   Row(
                     children: [
-                      const Icon(
-                        Icons.favorite_border,
-                        color: Color(0xFF6B7280),
-                        size: 18,
+                      AnimatedSwitcher(
+                        duration: const Duration(milliseconds: 200),
+                        child: Icon(
+                          key: ValueKey(isLiked),
+                          isLiked ? Icons.favorite : Icons.favorite_border,
+                          color: isLiked
+                              ? const Color(0xFFEF4444)
+                              : const Color(0xFF6B7280),
+                          size: 18,
+                        ),
                       ),
                       const SizedBox(width: 4),
-                      Text(
-                        '${article.likeCount}',
-                        style: const TextStyle(
-                          color: Color(0xFF9CA3AF),
-                          fontSize: 13,
+                      AnimatedSwitcher(
+                        duration: const Duration(milliseconds: 200),
+                        child: Text(
+                          key: ValueKey(likeCount),
+                          '$likeCount',
+                          style: TextStyle(
+                            color: isLiked
+                                ? const Color(0xFFEF4444)
+                                : const Color(0xFF9CA3AF),
+                            fontSize: 13,
+                          ),
                         ),
                       ),
                       const SizedBox(width: 16),
@@ -154,7 +195,7 @@ class ArticleCard extends StatelessWidget {
   }
 
   String _extractExcerpt(String content) {
-    if (content.isEmpty) return "";
+    if (content.isEmpty) return '';
     try {
       final clean = content
           .replaceAll(RegExp(r'\[|\]|\{|\}|"insert":"|"attributes":[^,}]+'), '')

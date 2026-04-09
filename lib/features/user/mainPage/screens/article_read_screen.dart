@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter_hooks/flutter_hooks.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
+import 'package:inersia_supabase/config/supabase_config.dart';
 import 'package:inersia_supabase/features/user/mainPage/providers/read_page_provider.dart';
 import 'package:inersia_supabase/models/article_model.dart';
 import 'package:inersia_supabase/models/comment_model.dart';
@@ -13,38 +14,26 @@ class ArticleReadScreen extends HookConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final currentUserId = supabaseConfig.client.auth.currentUser?.id ?? '';
+
     final commentController = useTextEditingController();
     final commentFocusNode = useFocusNode();
 
-    final likeState = ref.watch(likeProvider((article.id, article.likeCount)));
-    final bookmarkState = ref.watch(bookmarkProvider(article.id));
-    final followState = ref.watch(followProvider(article.authorId));
+    // Key sertakan userId agar provider fresh saat beda user login
+    final likeKey = (article.id, currentUserId);
+    final bookmarkKey = (article.id, currentUserId);
+    final followKey = (article.authorId, currentUserId);
 
-    final commentsAsync = ref.watch(commentsStreamProvider(article.id));
+    final likeState = ref.watch(likeProvider(likeKey));
+    final bookmarkState = ref.watch(bookmarkProvider(bookmarkKey));
+    final followState = ref.watch(followProvider(followKey));
+
+    // Realtime stats dari Supabase stream — otomatis update
+    final statsAsync = ref.watch(articleStatsStreamProvider(article.id));
+
+    // Realtime komentar dengan user info
+    final commentsAsync = ref.watch(commentsRealtimeProvider(article.id));
     final commentWrite = ref.watch(commentWriteProvider);
-
-    final initialStats = ArticleStats(
-      likeCount: article.likeCount,
-      viewCount: article.viewCount,
-      commentCount: article.commentCount,
-    );
-    final stats = ref.watch(articleStatsProvider((article.id, initialStats)));
-
-    ref.listen(likeProvider((article.id, article.likeCount)), (_, next) {
-      next.whenData((like) {
-        ref
-            .read(articleStatsProvider((article.id, initialStats)).notifier)
-            .updateLikeCount(like.count);
-      });
-    });
-
-    ref.listen(commentsStreamProvider(article.id), (_, next) {
-      next.whenData((comments) {
-        ref
-            .read(articleStatsProvider((article.id, initialStats)).notifier)
-            .updateCommentCount(comments.length);
-      });
-    });
 
     final contentParagraphs = _parseContent(article.content);
 
@@ -144,6 +133,7 @@ class ArticleReadScreen extends HookConsumerWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
+                  // Author Row
                   Row(
                     children: [
                       CircleAvatar(
@@ -187,25 +177,29 @@ class ArticleReadScreen extends HookConsumerWidget {
                           ],
                         ),
                       ),
-                      followState.when(
-                        data: (isFollowing) => _FollowButton(
-                          isFollowing: isFollowing,
-                          onTap: () => ref
-                              .read(followProvider(article.authorId).notifier)
-                              .toggle(),
-                        ),
-                        loading: () => const SizedBox(
-                          width: 80,
-                          child: LinearProgressIndicator(
-                            color: Color(0xFF2563EB),
+                      // Tidak tampilkan tombol follow jika artikel milik sendiri
+                      if (article.authorId != currentUserId)
+                        followState.when(
+                          data: (isFollowing) => _FollowButton(
+                            isFollowing: isFollowing,
+                            onTap: () => ref
+                                .read(followProvider(followKey).notifier)
+                                .toggle(),
                           ),
+                          loading: () => const SizedBox(
+                            width: 80,
+                            height: 32,
+                            child: LinearProgressIndicator(
+                              color: Color(0xFF2563EB),
+                            ),
+                          ),
+                          error: (_, __) => const SizedBox.shrink(),
                         ),
-                        error: (_, __) => const SizedBox.shrink(),
-                      ),
                     ],
                   ),
                   const SizedBox(height: 24),
 
+                  // Isi Artikel
                   ...contentParagraphs.map(
                     (para) => Padding(
                       padding: const EdgeInsets.only(bottom: 16),
@@ -222,6 +216,7 @@ class ArticleReadScreen extends HookConsumerWidget {
                   ),
                   const SizedBox(height: 16),
 
+                  // Tags
                   if (article.tags.isNotEmpty)
                     Wrap(
                       spacing: 8,
@@ -253,36 +248,54 @@ class ArticleReadScreen extends HookConsumerWidget {
                     ),
                   const SizedBox(height: 24),
 
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 20,
-                      vertical: 16,
+                  // Stats Bar — realtime dari stream
+                  statsAsync.when(
+                    data: (stats) => Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 20,
+                        vertical: 16,
+                      ),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF111827),
+                        borderRadius: BorderRadius.circular(16),
+                      ),
+                      child: Row(
+                        children: [
+                          _StatItem(
+                            value: _fmt(stats.likeCount),
+                            label: 'Suka',
+                          ),
+                          _StatDivider(),
+                          _StatItem(
+                            value: _fmt(stats.viewCount),
+                            label: 'Dilihat',
+                          ),
+                          _StatDivider(),
+                          _StatItem(
+                            value: _fmt(stats.commentCount),
+                            label: 'Komentar',
+                          ),
+                        ],
+                      ),
                     ),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFF111827),
-                      borderRadius: BorderRadius.circular(16),
+                    loading: () => Container(
+                      height: 72,
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF111827),
+                        borderRadius: BorderRadius.circular(16),
+                      ),
+                      child: const Center(
+                        child: CircularProgressIndicator(
+                          color: Color(0xFF2563EB),
+                          strokeWidth: 2,
+                        ),
+                      ),
                     ),
-                    child: Row(
-                      children: [
-                        _StatItem(
-                          value: _formatCount(stats.likeCount),
-                          label: 'Suka',
-                        ),
-                        _StatDivider(),
-                        _StatItem(
-                          value: _formatCount(stats.viewCount),
-                          label: 'Dilihat',
-                        ),
-                        _StatDivider(),
-                        _StatItem(
-                          value: _formatCount(stats.commentCount),
-                          label: 'Komentar',
-                        ),
-                      ],
-                    ),
+                    error: (_, __) => const SizedBox.shrink(),
                   ),
                   const SizedBox(height: 32),
 
+                  // Komentar Header
                   Row(
                     children: [
                       const Text(
@@ -320,6 +333,7 @@ class ArticleReadScreen extends HookConsumerWidget {
                   ),
                   const SizedBox(height: 16),
 
+                  // Comment Input
                   _CommentInput(
                     controller: commentController,
                     focusNode: commentFocusNode,
@@ -330,8 +344,10 @@ class ArticleReadScreen extends HookConsumerWidget {
                       await ref
                           .read(commentWriteProvider.notifier)
                           .addComment(articleId: article.id, commentText: text);
-                      commentController.clear();
-                      commentFocusNode.unfocus();
+                      if (!ref.read(commentWriteProvider).hasError) {
+                        commentController.clear();
+                        commentFocusNode.unfocus();
+                      }
                     },
                   ),
 
@@ -348,6 +364,7 @@ class ArticleReadScreen extends HookConsumerWidget {
                     ),
                   const SizedBox(height: 20),
 
+                  // Comment List — realtime
                   commentsAsync.when(
                     data: (comments) => comments.isEmpty
                         ? const Padding(
@@ -364,6 +381,7 @@ class ArticleReadScreen extends HookConsumerWidget {
                                 .map(
                                   (c) => _CommentItem(
                                     comment: c,
+                                    currentUserId: currentUserId,
                                     onReport: () => _showReportDialog(
                                       context: context,
                                       ref: ref,
@@ -390,7 +408,7 @@ class ArticleReadScreen extends HookConsumerWidget {
                     error: (e, _) => Padding(
                       padding: const EdgeInsets.symmetric(vertical: 16),
                       child: Text(
-                        'Gagal memuat komentar: $e',
+                        'Gagal memuat komentar.',
                         style: const TextStyle(color: Color(0xFF6B7280)),
                       ),
                     ),
@@ -403,6 +421,7 @@ class ArticleReadScreen extends HookConsumerWidget {
         ],
       ),
 
+      // Bottom Bar — Like & Bookmark
       bottomNavigationBar: Container(
         decoration: const BoxDecoration(
           color: Color(0xFF111827),
@@ -415,44 +434,60 @@ class ArticleReadScreen extends HookConsumerWidget {
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
+                // Like Button — isLiked dari likeProvider, count dari statsStream
                 likeState.when(
-                  data: (like) => GestureDetector(
-                    onTap: () => ref
-                        .read(
-                          likeProvider((
-                            article.id,
-                            article.likeCount,
-                          )).notifier,
-                        )
-                        .toggle(),
-                    child: AnimatedSwitcher(
-                      duration: const Duration(milliseconds: 200),
-                      child: Row(
-                        key: ValueKey(like.isLiked),
-                        children: [
-                          Icon(
-                            like.isLiked
-                                ? Icons.favorite
-                                : Icons.favorite_border,
-                            color: like.isLiked
-                                ? const Color(0xFFEF4444)
-                                : const Color(0xFF6B7280),
-                            size: 26,
-                          ),
-                          const SizedBox(width: 8),
-                          Text(
-                            _formatCount(like.count),
-                            style: TextStyle(
+                  data: (like) => statsAsync.when(
+                    data: (stats) => GestureDetector(
+                      onTap: () =>
+                          ref.read(likeProvider(likeKey).notifier).toggle(),
+                      child: AnimatedSwitcher(
+                        duration: const Duration(milliseconds: 200),
+                        child: Row(
+                          key: ValueKey(like.isLiked),
+                          children: [
+                            Icon(
+                              like.isLiked
+                                  ? Icons.favorite
+                                  : Icons.favorite_border,
                               color: like.isLiked
                                   ? const Color(0xFFEF4444)
-                                  : const Color(0xFF9CA3AF),
-                              fontSize: 15,
-                              fontWeight: FontWeight.w600,
+                                  : const Color(0xFF6B7280),
+                              size: 26,
                             ),
-                          ),
-                        ],
+                            const SizedBox(width: 8),
+                            Text(
+                              _fmt(stats.likeCount),
+                              style: TextStyle(
+                                color: like.isLiked
+                                    ? const Color(0xFFEF4444)
+                                    : const Color(0xFF9CA3AF),
+                                fontSize: 15,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
                     ),
+                    loading: () => Row(
+                      children: [
+                        const Icon(
+                          Icons.favorite_border,
+                          color: Color(0xFF6B7280),
+                          size: 26,
+                        ),
+                        const SizedBox(width: 8),
+                        Text(
+                          _fmt(article.likeCount),
+                          style: const TextStyle(
+                            color: Color(0xFF9CA3AF),
+                            fontSize: 15,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ],
+                    ),
+                    error: (_, __) => const SizedBox.shrink(),
                   ),
                   loading: () => const SizedBox(
                     width: 60,
@@ -461,31 +496,28 @@ class ArticleReadScreen extends HookConsumerWidget {
                   error: (_, __) => const SizedBox.shrink(),
                 ),
 
-                Row(
-                  children: [
-                    bookmarkState.when(
-                      data: (isBookmarked) => GestureDetector(
-                        onTap: () => ref
-                            .read(bookmarkProvider(article.id).notifier)
-                            .toggle(),
-                        child: AnimatedSwitcher(
-                          duration: const Duration(milliseconds: 200),
-                          child: Icon(
-                            key: ValueKey(isBookmarked),
-                            isBookmarked
-                                ? Icons.bookmark
-                                : Icons.bookmark_border_rounded,
-                            color: isBookmarked
-                                ? const Color(0xFF2563EB)
-                                : const Color(0xFF6B7280),
-                            size: 26,
-                          ),
-                        ),
+                // Bookmark Button
+                bookmarkState.when(
+                  data: (isBookmarked) => GestureDetector(
+                    onTap: () => ref
+                        .read(bookmarkProvider(bookmarkKey).notifier)
+                        .toggle(),
+                    child: AnimatedSwitcher(
+                      duration: const Duration(milliseconds: 200),
+                      child: Icon(
+                        key: ValueKey(isBookmarked),
+                        isBookmarked
+                            ? Icons.bookmark
+                            : Icons.bookmark_border_rounded,
+                        color: isBookmarked
+                            ? const Color(0xFF2563EB)
+                            : const Color(0xFF6B7280),
+                        size: 26,
                       ),
-                      loading: () => const SizedBox(width: 26, height: 26),
-                      error: (_, __) => const SizedBox.shrink(),
                     ),
-                  ],
+                  ),
+                  loading: () => const SizedBox(width: 26, height: 26),
+                  error: (_, __) => const SizedBox.shrink(),
                 ),
               ],
             ),
@@ -539,7 +571,7 @@ class ArticleReadScreen extends HookConsumerWidget {
     );
   }
 
-  String _formatCount(int count) {
+  String _fmt(int count) {
     if (count >= 1000000) return '${(count / 1000000).toStringAsFixed(1)}M';
     if (count >= 1000) return '${(count / 1000).toStringAsFixed(1)}K';
     return '$count';
@@ -572,6 +604,7 @@ class ArticleReadScreen extends HookConsumerWidget {
   );
 }
 
+// ─── Follow Button ─────────────────────────────────────────────
 
 class _FollowButton extends StatelessWidget {
   final bool isFollowing;
@@ -584,7 +617,7 @@ class _FollowButton extends StatelessWidget {
       onTap: onTap,
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 200),
-        padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 8),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
         decoration: BoxDecoration(
           color: isFollowing ? Colors.transparent : const Color(0xFF2563EB),
           borderRadius: BorderRadius.circular(20),
@@ -607,6 +640,7 @@ class _FollowButton extends StatelessWidget {
   }
 }
 
+// ─── Stat Widgets ──────────────────────────────────────────────
 
 class _StatItem extends StatelessWidget {
   final String value;
@@ -643,11 +677,18 @@ class _StatDivider extends StatelessWidget {
       Container(width: 1, height: 36, color: const Color(0xFF1F2937));
 }
 
+// ─── Comment Item ──────────────────────────────────────────────
 
 class _CommentItem extends StatelessWidget {
   final CommentModel comment;
+  final String currentUserId;
   final VoidCallback onReport;
-  const _CommentItem({required this.comment, required this.onReport});
+
+  const _CommentItem({
+    required this.comment,
+    required this.currentUserId,
+    required this.onReport,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -695,14 +736,16 @@ class _CommentItem extends StatelessWidget {
                       ),
                     ),
                     const Spacer(),
-                    GestureDetector(
-                      onTap: onReport,
-                      child: const Icon(
-                        Icons.more_horiz,
-                        color: Color(0xFF4B5563),
-                        size: 18,
+                    // Hanya tampilkan report jika bukan komentar sendiri
+                    if (comment.userId != currentUserId)
+                      GestureDetector(
+                        onTap: onReport,
+                        child: const Icon(
+                          Icons.more_horiz,
+                          color: Color(0xFF4B5563),
+                          size: 18,
+                        ),
                       ),
-                    ),
                   ],
                 ),
                 const SizedBox(height: 4),
@@ -723,6 +766,7 @@ class _CommentItem extends StatelessWidget {
   }
 }
 
+// ─── Comment Input ─────────────────────────────────────────────
 
 class _CommentInput extends StatelessWidget {
   final TextEditingController controller;
@@ -763,6 +807,7 @@ class _CommentInput extends StatelessWidget {
                     style: const TextStyle(color: Colors.white, fontSize: 14),
                     textInputAction: TextInputAction.send,
                     onSubmitted: (_) => onSend(),
+                    maxLines: null,
                     decoration: const InputDecoration(
                       hintText: 'Tuliskan pendapatmu...',
                       hintStyle: TextStyle(
@@ -806,6 +851,7 @@ class _CommentInput extends StatelessWidget {
   }
 }
 
+// ─── Report Bottom Sheet ───────────────────────────────────────
 
 class _ReportSheet extends HookWidget {
   final String targetId;
@@ -871,7 +917,6 @@ class _ReportSheet extends HookWidget {
             style: TextStyle(color: Color(0xFF6B7280), fontSize: 13),
           ),
           const SizedBox(height: 16),
-
           Wrap(
             spacing: 8,
             runSpacing: 8,
@@ -913,7 +958,6 @@ class _ReportSheet extends HookWidget {
             }).toList(),
           ),
           const SizedBox(height: 16),
-
           TextField(
             controller: descController,
             style: const TextStyle(color: Colors.white, fontSize: 14),
@@ -945,7 +989,6 @@ class _ReportSheet extends HookWidget {
             ),
           ),
           const SizedBox(height: 20),
-
           SizedBox(
             width: double.infinity,
             child: ElevatedButton(

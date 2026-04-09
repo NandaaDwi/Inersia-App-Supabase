@@ -1,5 +1,6 @@
 import 'package:flutter_riverpod/legacy.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
+import 'package:inersia_supabase/config/supabase_config.dart';
 import 'package:inersia_supabase/features/user/mainPage/services/main_page_service.dart';
 import 'package:inersia_supabase/models/article_model.dart';
 import 'package:inersia_supabase/models/category_model.dart';
@@ -7,6 +8,7 @@ import 'package:inersia_supabase/models/category_model.dart';
 final mainPageServiceProvider = Provider<MainPageService>(
   (_) => MainPageService(),
 );
+
 final selectedCategoryProvider = StateProvider<String?>((ref) => null);
 
 final categoriesProvider = FutureProvider<List<CategoryModel>>((ref) {
@@ -108,3 +110,34 @@ final articleListProvider =
     StateNotifierProvider<ArticleListNotifier, ArticleListState>(
       (ref) => ArticleListNotifier(ref.read(mainPageServiceProvider), ref),
     );
+
+final articleLikeCountStreamProvider = StreamProvider.family<int, String>((
+  ref,
+  articleId,
+) {
+  return supabaseConfig.client
+      .from('articles')
+      .stream(primaryKey: ['id'])
+      .eq('id', articleId)
+      .map((rows) {
+        if (rows.isEmpty) return 0;
+        return rows.first['like_count'] as int? ?? 0;
+      });
+});
+
+final cardLikeStatusProvider = FutureProvider.family<bool, (String, String)>((
+  ref,
+  args,
+) async {
+  final articleId = args.$1;
+  final userId = args.$2;
+  if (userId.isEmpty) return false;
+
+  final res = await supabaseConfig.client
+      .from('likes')
+      .select('article_id')
+      .eq('article_id', articleId)
+      .eq('user_id', userId)
+      .maybeSingle();
+  return res != null;
+});

@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
-import 'register_screen.dart';
 import '../widgets/login_form.dart';
 
 class LoginScreen extends StatelessWidget {

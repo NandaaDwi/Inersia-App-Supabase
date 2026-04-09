@@ -1,26 +1,31 @@
-import 'package:flutter_riverpod/legacy.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
 import 'package:inersia_supabase/features/auth/services/auth_service.dart';
 import 'package:inersia_supabase/config/supabase_config.dart';
+import 'package:inersia_supabase/features/user/mainPage/providers/main_page_provider.dart';
+import 'package:inersia_supabase/features/user/mainPage/providers/read_page_provider.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
-final authServiceProvider = Provider((ref) => AuthService());
+final authServiceProvider = Provider((_) => AuthService());
 
-final authStateProvider = StreamProvider((ref) {
+final authStateProvider = StreamProvider<AuthState>((ref) {
   return supabaseConfig.client.auth.onAuthStateChange;
 });
 
-final userRoleProvider = FutureProvider<String?>((ref) async {
-  final authState = ref.watch(authStateProvider).value;
-  final session =
-      authState?.session ?? supabaseConfig.client.auth.currentSession;
+final currentUserIdProvider = Provider<String?>((ref) {
+  final authState = ref.watch(authStateProvider).asData?.value;
+  return authState?.session?.user.id ??
+      supabaseConfig.client.auth.currentUser?.id;
+});
 
-  if (session == null) return null;
+final userRoleProvider = FutureProvider<String?>((ref) async {
+  final userId = ref.watch(currentUserIdProvider);
+  if (userId == null) return null;
 
   try {
     final data = await supabaseConfig.client
         .from('users')
         .select('role')
-        .eq('id', session.user.id)
+        .eq('id', userId)
         .single();
     return data['role'] as String?;
   } catch (_) {
@@ -28,23 +33,20 @@ final userRoleProvider = FutureProvider<String?>((ref) async {
   }
 });
 
-final authProvider = StateNotifierProvider<AuthNotifier, AsyncValue<void>>(
-  (ref) => AuthNotifier(ref),
-);
-
-class AuthNotifier extends StateNotifier<AsyncValue<void>> {
-  final Ref ref;
-
-  AuthNotifier(this.ref) : super(const AsyncData(null));
+class AuthNotifier extends Notifier<AsyncValue<void>> {
+  @override
+  AsyncValue<void> build() {
+    return const AsyncData(null);
+  }
 
   Future<void> login(String email, String password) async {
     state = const AsyncLoading();
     try {
       await ref.read(authServiceProvider).login(email, password);
-      ref.invalidate(userRoleProvider);
+      _invalidateUserProviders();
       state = const AsyncData(null);
-    } catch (e, stack) {
-      state = AsyncError(e, stack);
+    } catch (e, s) {
+      state = AsyncError(e, s);
     }
   }
 
@@ -65,8 +67,8 @@ class AuthNotifier extends StateNotifier<AsyncValue<void>> {
             username: username,
           );
       state = const AsyncData(null);
-    } catch (e, stack) {
-      state = AsyncError(e, stack);
+    } catch (e, s) {
+      state = AsyncError(e, s);
     }
   }
 
@@ -74,10 +76,10 @@ class AuthNotifier extends StateNotifier<AsyncValue<void>> {
     state = const AsyncLoading();
     try {
       await ref.read(authServiceProvider).logout();
-      ref.invalidate(userRoleProvider);
+      _invalidateUserProviders();
       state = const AsyncData(null);
-    } catch (e, stack) {
-      state = AsyncError(e, stack);
+    } catch (e, s) {
+      state = AsyncError(e, s);
     }
   }
 
@@ -86,8 +88,8 @@ class AuthNotifier extends StateNotifier<AsyncValue<void>> {
     try {
       await ref.read(authServiceProvider).sendPasswordResetEmail(email);
       state = const AsyncData(null);
-    } catch (e, stack) {
-      state = AsyncError(e, stack);
+    } catch (e, s) {
+      state = AsyncError(e, s);
     }
   }
 
@@ -96,8 +98,23 @@ class AuthNotifier extends StateNotifier<AsyncValue<void>> {
     try {
       await ref.read(authServiceProvider).updateUserPassword(newPassword);
       state = const AsyncData(null);
-    } catch (e, stack) {
-      state = AsyncError(e, stack);
+    } catch (e, s) {
+      state = AsyncError(e, s);
     }
   }
+
+  void _invalidateUserProviders() {
+    ref.invalidate(userRoleProvider);
+    ref.invalidate(articleListProvider);
+    ref.invalidate(likeProvider);
+    ref.invalidate(bookmarkProvider);
+    ref.invalidate(followProvider);
+    ref.invalidate(cardLikeStatusProvider);
+    ref.invalidate(commentWriteProvider);
+    ref.invalidate(categoriesProvider);
+  }
 }
+
+final authProvider = NotifierProvider<AuthNotifier, AsyncValue<void>>(
+  () => AuthNotifier(),
+);

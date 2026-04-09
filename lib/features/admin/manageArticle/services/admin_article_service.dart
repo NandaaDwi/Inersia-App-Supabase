@@ -65,14 +65,10 @@ class AdminArticleService {
               .select()
               .single();
 
-    // Ambil articleId dari response — selalu ada baik insert maupun update
     final String articleId = articleRes['id'] as String;
 
-    // Hapus semua tag lama sebelum insert ulang
-    // Dilakukan untuk SEMUA kasus (create & update) agar konsisten
     await _client.from('article_tags').delete().eq('article_id', articleId);
 
-    // Insert tag baru jika ada
     if (tagIds.isNotEmpty) {
       final pivotRows = tagIds
           .map((tid) => {'article_id': articleId, 'tag_id': tid})

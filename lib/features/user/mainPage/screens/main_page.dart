@@ -6,6 +6,7 @@ import 'package:inersia_supabase/features/user/mainPage/widgets/app_bottom_bar.d
 import 'package:inersia_supabase/features/user/mainPage/widgets/article_card.dart';
 import 'package:inersia_supabase/models/article_model.dart';
 import 'package:inersia_supabase/models/category_model.dart';
+import 'package:inersia_supabase/utils/nav_utils.dart';
 
 class MainPage extends ConsumerStatefulWidget {
   const MainPage({super.key});
@@ -38,30 +39,6 @@ class _MainPageState extends ConsumerState<MainPage> {
     }
   }
 
-  int _getCurrentIndex(String location) {
-    if (location == '/' || location == '/home') return 0;
-    if (location == '/search') return 1;
-    if (location == '/create-article') return 2;
-    if (location == '/list') return 3;
-    if (location == '/profile') return 4;
-    return 0;
-  }
-
-  void _onItemTapped(int index) {
-    switch (index) {
-      case 0:
-        context.go('/home');
-      case 1:
-        context.push('/search');
-      case 2:
-        context.push('/create-article');
-      case 3:
-        context.push('/list');
-      case 4:
-        context.go('/profile');
-    }
-  }
-
   void _navigateToArticle(ArticleModel article) {
     context.push('/article/${article.id}', extra: article);
   }
@@ -83,7 +60,6 @@ class _MainPageState extends ConsumerState<MainPage> {
           controller: _scrollController,
           physics: const AlwaysScrollableScrollPhysics(),
           slivers: [
-            // ─── App Bar ─────────────────────────────────────
             SliverAppBar(
               backgroundColor: const Color(0xFF0D0D0D),
               floating: true,
@@ -141,7 +117,6 @@ class _MainPageState extends ConsumerState<MainPage> {
               ],
             ),
 
-            // ─── Category chips ───────────────────────────────
             SliverToBoxAdapter(
               child: categoriesAsync.when(
                 data: (cats) => _CategoryList(
@@ -155,7 +130,6 @@ class _MainPageState extends ConsumerState<MainPage> {
               ),
             ),
 
-            // ─── Section header ───────────────────────────────
             const SliverToBoxAdapter(
               child: Padding(
                 padding: EdgeInsets.fromLTRB(16, 8, 16, 12),
@@ -170,7 +144,6 @@ class _MainPageState extends ConsumerState<MainPage> {
               ),
             ),
 
-            // ─── Article list ─────────────────────────────────
             if (articleState.isLoading)
               const SliverFillRemaining(
                 child: Center(
@@ -198,7 +171,6 @@ class _MainPageState extends ConsumerState<MainPage> {
                         ),
                       );
                     }
-                    // Load more indicator / end spacer
                     return articleState.isLoadingMore
                         ? const Padding(
                             padding: EdgeInsets.symmetric(vertical: 20),
@@ -217,14 +189,12 @@ class _MainPageState extends ConsumerState<MainPage> {
         ),
       ),
       bottomNavigationBar: AppBottomBar(
-        currentIndex: _getCurrentIndex(location),
-        onTap: _onItemTapped,
+        currentIndex: NavUtils.getCurrentIndex(location),
+        onTap: (index) => NavUtils.onItemTapped(context, index),
       ),
     );
   }
 }
-
-// ─── Sliver: Error ────────────────────────────────────────────
 
 class _ErrorSliver extends StatelessWidget {
   final VoidCallback onRetry;
@@ -261,8 +231,6 @@ class _ErrorSliver extends StatelessWidget {
   }
 }
 
-// ─── Sliver: Empty ────────────────────────────────────────────
-
 class _EmptySliver extends StatelessWidget {
   const _EmptySliver();
 
@@ -285,8 +253,6 @@ class _EmptySliver extends StatelessWidget {
     );
   }
 }
-
-// ─── Category List ────────────────────────────────────────────
 
 class _CategoryList extends StatelessWidget {
   final List<CategoryModel> categories;

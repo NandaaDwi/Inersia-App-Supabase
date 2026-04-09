@@ -2,8 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
 import 'package:inersia_supabase/config/supabase_config.dart';
+import 'package:inersia_supabase/features/admin/comments/screens/admin_comment_screen.dart';
+import 'package:inersia_supabase/features/admin/reports/screens/admin_notiffication_screen.dart';
+import 'package:inersia_supabase/features/admin/reports/screens/admin_report_screen.dart';
 import 'package:inersia_supabase/features/auth/providers/auth_provider.dart';
-import 'package:inersia_supabase/features/admin/dashboard/admin_dashboard.dart';
+import 'package:inersia_supabase/features/admin/dashboard/screens/admin_dashboard.dart';
 import 'package:inersia_supabase/features/admin/manageArticle/screens/admin_article_management_screen.dart';
 import 'package:inersia_supabase/features/admin/manageCategoryTag/screens/taxonomy_management_screen.dart';
 import 'package:inersia_supabase/features/admin/manageUser/screens/user_management_screen.dart';
@@ -15,47 +18,63 @@ import 'package:inersia_supabase/features/user/article/screens/user_article_edit
 import 'package:inersia_supabase/features/user/mainPage/screens/article_read_screen.dart';
 import 'package:inersia_supabase/features/user/mainPage/screens/main_page.dart';
 import 'package:inersia_supabase/features/user/profile/screens/profile_screen.dart';
+import 'package:inersia_supabase/features/user/search/screens/search_screen.dart';
 import 'package:inersia_supabase/models/article_model.dart';
 
-Page<void> buildPageTransition<T>({
+Page<void> _buildPage<T>({
   required GoRouterState state,
   required Widget child,
 }) {
   return CustomTransitionPage<T>(
     key: state.pageKey,
     child: child,
-    transitionsBuilder: (context, animation, secondaryAnimation, child) {
-      return FadeTransition(opacity: animation, child: child);
-    },
+    transitionsBuilder: (_, animation, __, child) =>
+        FadeTransition(opacity: animation, child: child),
     transitionDuration: const Duration(milliseconds: 150),
   );
 }
 
 final routerProvider = Provider<GoRouter>((ref) {
-  final authState = ref.watch(authStateProvider);
-  final userRole = ref.watch(userRoleProvider);
+  final notifier = RouterNotifier(ref);
 
   return GoRouter(
     initialLocation: '/',
-    refreshListenable: RouterNotifier(ref),
+    refreshListenable: notifier,
     redirect: (context, state) {
+      final location = state.matchedLocation;
       final session = supabaseConfig.client.auth.currentSession;
-      final isLoggingIn =
-          state.matchedLocation == '/login' ||
-          state.matchedLocation == '/register' ||
-          state.matchedLocation == '/forgot-password';
+      final isAuthenticated = session != null;
 
-      if (session == null) return isLoggingIn ? null : '/login';
-      if (isLoggingIn) return '/';
+      final isAuthRoute =
+          location == '/login' ||
+          location == '/register' ||
+          location == '/forgot-password' ||
+          location == '/reset-password';
 
-      final adminRoutes = [
+      if (!isAuthenticated) {
+        return isAuthRoute ? null : '/login';
+      }
+
+      if (isAuthenticated && isAuthRoute) {
+        return '/';
+      }
+
+      final roleAsync = ref.read(userRoleProvider);
+      final userRole = roleAsync.asData?.value;
+      const adminRoutes = [
         '/manageUser',
         '/manageCategoryTag',
         '/manageArticles',
+        '/reports',
+        '/manageComments',
+        '/admin-notiffications',
       ];
-      final isAdminRoute = adminRoutes.contains(state.matchedLocation);
 
-      if (isAdminRoute && userRole.value != 'admin') return '/';
+      if (adminRoutes.contains(location) &&
+          userRole != null &&
+          userRole != 'admin') {
+        return '/';
+      }
 
       return null;
     },
@@ -63,88 +82,118 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/login',
         pageBuilder: (context, state) =>
-            buildPageTransition(state: state, child: const LoginScreen()),
+            _buildPage(state: state, child: const LoginScreen()),
       ),
       GoRoute(
         path: '/register',
         pageBuilder: (context, state) =>
-            buildPageTransition(state: state, child: const RegisterScreen()),
+            _buildPage(state: state, child: const RegisterScreen()),
       ),
       GoRoute(
         path: '/forgot-password',
-        pageBuilder: (context, state) => buildPageTransition(
-          state: state,
-          child: const ForgotPasswordScreen(),
-        ),
+        pageBuilder: (context, state) =>
+            _buildPage(state: state, child: const ForgotPasswordScreen()),
       ),
       GoRoute(
         path: '/reset-password',
-        pageBuilder: (context, state) => buildPageTransition(
-          state: state,
-          child: const ResetPasswordScreen(),
-        ),
+        pageBuilder: (context, state) =>
+            _buildPage(state: state, child: const ResetPasswordScreen()),
       ),
       GoRoute(
         path: '/',
-        pageBuilder: (context, state) => buildPageTransition(
-          state: state,
-          child: userRole.when(
-            data: (role) =>
-                role == 'admin' ? const AdminDashboard() : const MainPage(),
-            loading: () => const Scaffold(
-              body: Center(child: CircularProgressIndicator()),
+        pageBuilder: (context, state) {
+          return _buildPage(
+            state: state,
+            child: Consumer(
+              builder: (context, ref, _) {
+                final roleAsync = ref.watch(userRoleProvider);
+                return roleAsync.when(
+                  data: (role) => role == 'admin'
+                      ? const AdminDashboard()
+                      : const MainPage(),
+                  loading: () => const Scaffold(
+                    backgroundColor: Color(0xFF0D0D0D),
+                    body: Center(
+                      child: CircularProgressIndicator(
+                        color: Color(0xFF2563EB),
+                      ),
+                    ),
+                  ),
+                  error: (_, __) => const MainPage(),
+                );
+              },
             ),
-            error: (_, __) => const MainPage(),
-          ),
-        ),
+          );
+        },
       ),
       GoRoute(
         path: '/home',
         pageBuilder: (context, state) =>
-            buildPageTransition(state: state, child: const MainPage()),
+            _buildPage(state: state, child: const MainPage()),
+      ),
+      GoRoute(
+        path: '/search',
+        pageBuilder: (context, state) =>
+            _buildPage(state: state, child: const SearchScreen()),
       ),
       GoRoute(
         path: '/article/:id',
+        redirect: (context, state) {
+          final article = state.extra;
+          if (article == null || article is! ArticleModel) {
+            return '/';
+          }
+          return null;
+        },
         pageBuilder: (context, state) {
-          final article = state.extra as ArticleModel?;
-          return buildPageTransition(
+          final article = state.extra as ArticleModel;
+          return _buildPage(
             state: state,
-            child: article != null
-                ? ArticleReadScreen(article: article)
-                : const SizedBox(),
+            child: ArticleReadScreen(article: article),
           );
         },
       ),
       GoRoute(
         path: '/profile',
         pageBuilder: (context, state) =>
-            buildPageTransition(state: state, child: const ProfilePage()),
+            _buildPage(state: state, child: const ProfilePage()),
       ),
       GoRoute(
         path: '/create-article',
         pageBuilder: (context, state) =>
-            buildPageTransition(state: state, child: const UserArticleEditorScreen()),
+            _buildPage(state: state, child: const UserArticleEditorScreen()),
       ),
       GoRoute(
         path: '/manageUser',
-        pageBuilder: (context, state) => buildPageTransition(
-          state: state,
-          child: const UserManagementScreen(),
-        ),
+        pageBuilder: (context, state) =>
+            _buildPage(state: state, child: const UserManagementScreen()),
       ),
       GoRoute(
         path: '/manageCategoryTag',
-        pageBuilder: (context, state) => buildPageTransition(
-          state: state,
-          child: const TaxonomyManagementScreen(),
-        ),
+        pageBuilder: (context, state) =>
+            _buildPage(state: state, child: const TaxonomyManagementScreen()),
       ),
       GoRoute(
         path: '/manageArticles',
-        pageBuilder: (context, state) => buildPageTransition(
+        pageBuilder: (context, state) => _buildPage(
           state: state,
           child: const AdminArticleManagementScreen(),
         ),
+      ),
+      GoRoute(
+        path: '/manageComments',
+        pageBuilder: (context, state) =>
+            _buildPage(state: state, child: const AdminCommentScreen()),
+      ),
+      GoRoute(
+        path: '/reports',
+        pageBuilder: (context, state) =>
+            _buildPage(state: state, child: const AdminReportScreen()),
+      ),
+      GoRoute(
+        path: '/admin-notiffications',
+        pageBuilder: (context, state) =>
+            _buildPage(state: state, child: const AdminNotificationScreen()),
       ),
     ],
   );

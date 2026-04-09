@@ -2,7 +2,7 @@ import 'package:inersia_supabase/config/supabase_config.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 class AuthService {
-  final client = supabaseConfig.client;
+  final _client = supabaseConfig.client;
 
   Future<void> register({
     required String email,
@@ -10,46 +10,66 @@ class AuthService {
     required String name,
     required String username,
   }) async {
-    await client.auth.signUp(
+    // Cek username tidak duplikat sebelum mendaftar
+    final existing = await _client
+        .from('users')
+        .select('id')
+        .eq('username', username.trim().toLowerCase())
+        .maybeSingle();
+
+    if (existing != null) {
+      throw const AuthException('Username sudah digunakan. Pilih username lain.');
+    }
+
+    await _client.auth.signUp(
       email: email,
       password: password,
-      data: {'name': name, 'username': username},
+      data: {
+        'name': name.trim(),
+        'username': username.trim().toLowerCase(),
+      },
       emailRedirectTo: 'io.supabase.flutter://login',
     );
   }
 
   Future<void> login(String email, String password) async {
-    final response = await client.auth.signInWithPassword(
+    final response = await _client.auth.signInWithPassword(
       email: email,
       password: password,
     );
 
     if (response.user != null) {
-      final userData = await client
-          .from('users')
-          .select('status')
-          .eq('id', response.user!.id)
-          .single();
+      try {
+        final userData = await _client
+            .from('users')
+            .select('status')
+            .eq('id', response.user!.id)
+            .single();
 
-      if (userData['status'] == 'banned') {
-        await logout();
-        throw const AuthException('user_banned');
+        if (userData['status'] == 'banned') {
+          await logout();
+          throw const AuthException('user_banned');
+        }
+      } catch (e) {
+        if (e is AuthException) rethrow;
+        // Jika query users gagal (user belum ada di tabel),
+        // biarkan login tetap berlanjut
       }
     }
   }
 
   Future<void> logout() async {
-    await client.auth.signOut();
+    await _client.auth.signOut();
   }
 
   Future<void> sendPasswordResetEmail(String email) async {
-    await client.auth.resetPasswordForEmail(
+    await _client.auth.resetPasswordForEmail(
       email,
       redirectTo: 'io.supabase.flutter://reset-password',
     );
   }
 
   Future<void> updateUserPassword(String newPassword) async {
-    await client.auth.updateUser(UserAttributes(password: newPassword));
+    await _client.auth.updateUser(UserAttributes(password: newPassword));
   }
 }

@@ -5,41 +5,38 @@ import 'package:inersia_supabase/models/comment_model.dart';
 class ReadPageService {
   final _client = supabaseConfig.client;
 
-  // ─── Article ──────────────────────────────────────────────────
+  String? get _currentUserId => _client.auth.currentUser?.id;
 
   Future<ArticleModel> getArticleById(String id) async {
     final res = await _client
         .from('articles')
-        .select('''
-          id, author_id, title, content, thumbnail, status,
-          category_id, estimated_reading, like_count,
-          comment_count, view_count, tags, created_at, updated_at,
-          users(name, photo_url),
-          categories(name)
-        ''')
+        .select(
+          'id,author_id,title,content,thumbnail,status,category_id,'
+          'estimated_reading,like_count,comment_count,view_count,'
+          'tags,created_at,updated_at,'
+          'users:author_id(name,photo_url),'
+          'categories:category_id(name)',
+        )
         .eq('id', id)
         .single();
 
-    // Increment view_count fire-and-forget — tidak block UI
     _incrementViewCount(id, res['view_count'] as int? ?? 0);
-
     return ArticleModel.fromJson(res);
   }
 
-  void _incrementViewCount(String articleId, int currentCount) {
+  void _incrementViewCount(String articleId, int current) {
     _client
         .from('articles')
-        .update({'view_count': currentCount + 1})
+        .update({'view_count': current + 1})
         .eq('id', articleId)
         .then((_) {})
         .catchError((_) {});
   }
 
-  // Fetch angka stats terbaru (like, view, comment) dari DB
   Future<Map<String, int>> getArticleStats(String articleId) async {
     final res = await _client
         .from('articles')
-        .select('like_count, view_count, comment_count')
+        .select('like_count,view_count,comment_count')
         .eq('id', articleId)
         .single();
     return {
@@ -49,86 +46,63 @@ class ReadPageService {
     };
   }
 
-  // ─── Like ─────────────────────────────────────────────────────
-
   Future<bool> isLiked(String articleId) async {
-    final userId = _client.auth.currentUser?.id;
-    if (userId == null) return false;
+    final uid = _currentUserId;
+    if (uid == null) return false;
     final res = await _client
         .from('likes')
         .select('article_id')
         .eq('article_id', articleId)
-        .eq('user_id', userId)
+        .eq('user_id', uid)
         .maybeSingle();
     return res != null;
   }
 
-  /// Return: {isLiked: bool, count: int}
-  /// Menggunakan PostgreSQL raw UPDATE dengan expr untuk atomic increment/decrement
-  /// menghindari race condition dan tidak bergantung pada RPC custom
   Future<({bool isLiked, int count})> toggleLike(
     String articleId,
     bool currentlyLiked,
   ) async {
-    final userId = _client.auth.currentUser!.id;
+    final uid = _currentUserId!;
 
     if (currentlyLiked) {
-      // Unlike: hapus dari likes, kurangi like_count dengan raw SQL expr
       await _client
           .from('likes')
           .delete()
           .eq('article_id', articleId)
-          .eq('user_id', userId);
-
-      // Gunakan rpc yang aman atau update manual dengan fetch dulu
-      final countRes = await _client
-          .from('articles')
-          .select('like_count')
-          .eq('id', articleId)
-          .single();
-      final current = countRes['like_count'] as int? ?? 0;
-      final newCount = (current - 1).clamp(0, 999999);
-
-      await _client
-          .from('articles')
-          .update({'like_count': newCount})
-          .eq('id', articleId);
-
-      return (isLiked: false, count: newCount);
+          .eq('user_id', uid);
     } else {
-      // Like: insert ke likes, tambah like_count
       await _client.from('likes').insert({
         'article_id': articleId,
-        'user_id': userId,
+        'user_id': uid,
       });
-
-      final countRes = await _client
-          .from('articles')
-          .select('like_count')
-          .eq('id', articleId)
-          .single();
-      final current = countRes['like_count'] as int? ?? 0;
-      final newCount = current + 1;
-
-      await _client
-          .from('articles')
-          .update({'like_count': newCount})
-          .eq('id', articleId);
-
-      return (isLiked: true, count: newCount);
     }
+
+    final countRes = await _client
+        .from('articles')
+        .select('like_count')
+        .eq('id', articleId)
+        .single();
+    final current = countRes['like_count'] as int? ?? 0;
+    final newCount = currentlyLiked
+        ? (current - 1).clamp(0, 999999)
+        : current + 1;
+
+    await _client
+        .from('articles')
+        .update({'like_count': newCount})
+        .eq('id', articleId);
+
+    return (isLiked: !currentlyLiked, count: newCount);
   }
 
-  // ─── Bookmark ─────────────────────────────────────────────────
-
   Future<bool> isBookmarked(String articleId) async {
-    final userId = _client.auth.currentUser?.id;
-    if (userId == null) return false;
+    final uid = _currentUserId;
+    if (uid == null) return false;
     final res = await _client
         .from('reading_list')
         .select('id')
         .eq('article_id', articleId)
-        .eq('user_id', userId)
+        .eq('user_id', uid)
         .maybeSingle();
     return res != null;
   }
@@ -137,28 +111,26 @@ class ReadPageService {
     String articleId,
     bool currentlyBookmarked,
   ) async {
-    final userId = _client.auth.currentUser!.id;
+    final uid = _currentUserId!;
     if (currentlyBookmarked) {
       await _client
           .from('reading_list')
           .delete()
           .eq('article_id', articleId)
-          .eq('user_id', userId);
+          .eq('user_id', uid);
     } else {
       await _client.from('reading_list').insert({
         'article_id': articleId,
-        'user_id': userId,
+        'user_id': uid,
         'saved_at': DateTime.now().toIso8601String(),
       });
     }
   }
 
-  // ─── Comments ─────────────────────────────────────────────────
-
   Future<List<CommentModel>> getComments(String articleId) async {
     final res = await _client
         .from('comments')
-        .select('*, users(name, photo_url)')
+        .select('*,users:user_id(name,photo_url)')
         .eq('article_id', articleId)
         .isFilter('parent_id', null)
         .order('created_at', ascending: true);
@@ -170,173 +142,145 @@ class ReadPageService {
     required String commentText,
     String? parentId,
   }) async {
-    final userId = _client.auth.currentUser!.id;
+    final uid = _currentUserId!;
 
     final res = await _client
         .from('comments')
         .insert({
           'article_id': articleId,
-          'user_id': userId,
+          'user_id': uid,
           'comment_text': commentText,
           if (parentId != null) 'parent_id': parentId,
         })
-        .select('*, users(name, photo_url)')
+        .select('*,users:user_id(name,photo_url)')
         .single();
 
-    // Update comment_count secara atomic
     final countRes = await _client
         .from('articles')
         .select('comment_count')
         .eq('id', articleId)
         .single();
-    final currentCount = countRes['comment_count'] as int? ?? 0;
+    final current = countRes['comment_count'] as int? ?? 0;
     await _client
         .from('articles')
-        .update({'comment_count': currentCount + 1})
+        .update({'comment_count': current + 1})
         .eq('id', articleId);
 
     return CommentModel.fromJson(res);
   }
 
-  /// Realtime stream untuk komentar artikel tertentu
-  /// Menggunakan Supabase Realtime channel dengan filter per article_id
-  Stream<List<CommentModel>> commentsStream(String articleId) {
-    return _client
-        .from('comments')
-        .stream(primaryKey: ['id'])
-        .eq('article_id', articleId)
-        .order('created_at', ascending: true)
-        .map(
-          (rows) => rows
-              .where((r) => r['parent_id'] == null)
-              .map((r) => CommentModel.fromJsonStream(r))
-              .toList(),
-        );
-  }
-
-  // ─── Follow ───────────────────────────────────────────────────
-
   Future<bool> isFollowing(String targetUserId) async {
-    final followerId = _client.auth.currentUser?.id;
-    if (followerId == null || followerId == targetUserId) return false;
+    final uid = _currentUserId;
+    if (uid == null || uid == targetUserId) return false;
     final res = await _client
         .from('social')
         .select('follower_id')
-        .eq('follower_id', followerId)
+        .eq('follower_id', uid)
         .eq('following_id', targetUserId)
         .maybeSingle();
     return res != null;
   }
 
-  /// Toggle follow/unfollow dan update followers_count + following_count atomically
   Future<bool> toggleFollow(
     String targetUserId,
     bool currentlyFollowing,
   ) async {
-    final followerId = _client.auth.currentUser!.id;
-    if (followerId == targetUserId) return currentlyFollowing;
+    final uid = _currentUserId!;
+    if (uid == targetUserId) return currentlyFollowing;
 
     if (currentlyFollowing) {
-      // Unfollow
       await _client
           .from('social')
           .delete()
-          .eq('follower_id', followerId)
+          .eq('follower_id', uid)
           .eq('following_id', targetUserId);
 
-      // Kurangi followers_count target
-      final targetRes = await _client
+      final tr = await _client
           .from('users')
           .select('followers_count')
           .eq('id', targetUserId)
           .single();
-      final tc = (targetRes['followers_count'] as int? ?? 1) - 1;
       await _client
           .from('users')
-          .update({'followers_count': tc.clamp(0, 999999)})
+          .update({
+            'followers_count': ((tr['followers_count'] as int? ?? 1) - 1).clamp(
+              0,
+              999999,
+            ),
+          })
           .eq('id', targetUserId);
 
-      // Kurangi following_count self
-      final selfRes = await _client
+      final sr = await _client
           .from('users')
           .select('following_count')
-          .eq('id', followerId)
+          .eq('id', uid)
           .single();
-      final sc = (selfRes['following_count'] as int? ?? 1) - 1;
       await _client
           .from('users')
-          .update({'following_count': sc.clamp(0, 999999)})
-          .eq('id', followerId);
+          .update({
+            'following_count': ((sr['following_count'] as int? ?? 1) - 1).clamp(
+              0,
+              999999,
+            ),
+          })
+          .eq('id', uid);
 
       return false;
     } else {
-      // Follow
       await _client.from('social').insert({
-        'follower_id': followerId,
+        'follower_id': uid,
         'following_id': targetUserId,
         'created_at': DateTime.now().toIso8601String(),
       });
 
-      // Tambah followers_count target
-      final targetRes = await _client
+      final tr = await _client
           .from('users')
           .select('followers_count')
           .eq('id', targetUserId)
           .single();
-      final tc = (targetRes['followers_count'] as int? ?? 0) + 1;
       await _client
           .from('users')
-          .update({'followers_count': tc})
+          .update({'followers_count': (tr['followers_count'] as int? ?? 0) + 1})
           .eq('id', targetUserId);
 
-      // Tambah following_count self
-      final selfRes = await _client
+      final sr = await _client
           .from('users')
           .select('following_count')
-          .eq('id', followerId)
+          .eq('id', uid)
           .single();
-      final sc = (selfRes['following_count'] as int? ?? 0) + 1;
       await _client
           .from('users')
-          .update({'following_count': sc})
-          .eq('id', followerId);
+          .update({'following_count': (sr['following_count'] as int? ?? 0) + 1})
+          .eq('id', uid);
 
-      // Kirim notifikasi ke target (fire-and-forget)
-      _sendFollowNotification(followerId, targetUserId);
+      _client
+          .from('notifications')
+          .insert({
+            'receiver_id': targetUserId,
+            'sender_id': uid,
+            'type': 'follow',
+            'is_read': false,
+          })
+          .then((_) {})
+          .catchError((_) {});
 
       return true;
     }
   }
 
-  void _sendFollowNotification(String senderId, String receiverId) {
-    _client
-        .from('notifications')
-        .insert({
-          'receiver_id': receiverId,
-          'sender_id': senderId,
-          'type': 'follow',
-          'is_read': false,
-        })
-        .then((_) {})
-        .catchError((_) {});
-  }
-
-  // ─── Report ───────────────────────────────────────────────────
-
   Future<void> submitReport({
     required String targetId,
-    required String targetType, // 'article' atau 'comment'
+    required String targetType,
     required String reasonCategory,
     String? description,
     Map<String, dynamic>? contentSnapshot,
   }) async {
-    final reporterId = _client.auth.currentUser!.id;
+    final uid = _currentUserId!;
 
-    // Cek duplikasi — user tidak bisa report item yang sama dua kali
     final existing = await _client
         .from('reports')
         .select('id')
-        .eq('reporter_id', reporterId)
+        .eq('reporter_id', uid)
         .eq('target_id', targetId)
         .maybeSingle();
 
@@ -345,7 +289,7 @@ class ReadPageService {
     }
 
     await _client.from('reports').insert({
-      'reporter_id': reporterId,
+      'reporter_id': uid,
       'target_id': targetId,
       'target_type': targetType,
       'reason_category': reasonCategory,

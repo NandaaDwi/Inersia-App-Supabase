@@ -1,17 +1,13 @@
-import 'dart:async';
 import 'package:flutter_riverpod/legacy.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
+import 'package:inersia_supabase/config/supabase_config.dart';
 import 'package:inersia_supabase/features/user/mainPage/services/read_page_service.dart';
 import 'package:inersia_supabase/models/article_model.dart';
 import 'package:inersia_supabase/models/comment_model.dart';
 
-// ─── Service Provider ─────────────────────────────────────────
-
 final readPageServiceProvider = Provider<ReadPageService>(
   (_) => ReadPageService(),
 );
-
-// ─── Article Detail ───────────────────────────────────────────
 
 final articleDetailProvider = FutureProvider.family<ArticleModel, String>((
   ref,
@@ -19,9 +15,6 @@ final articleDetailProvider = FutureProvider.family<ArticleModel, String>((
 ) {
   return ref.read(readPageServiceProvider).getArticleById(id);
 });
-
-// ─── Stats (like_count, view_count, comment_count) ────────────
-// Dipisah dari ArticleModel agar bisa diupdate tanpa rebuild seluruh halaman
 
 class ArticleStats {
   final int likeCount;
@@ -33,67 +26,43 @@ class ArticleStats {
     required this.viewCount,
     required this.commentCount,
   });
-
-  ArticleStats copyWith({int? likeCount, int? viewCount, int? commentCount}) {
-    return ArticleStats(
-      likeCount: likeCount ?? this.likeCount,
-      viewCount: viewCount ?? this.viewCount,
-      commentCount: commentCount ?? this.commentCount,
-    );
-  }
 }
 
-class ArticleStatsNotifier extends StateNotifier<ArticleStats> {
-  final ReadPageService _service;
-  final String _articleId;
-
-  ArticleStatsNotifier(this._service, this._articleId, ArticleStats initial)
-    : super(initial);
-
-  Future<void> refresh() async {
-    try {
-      final data = await _service.getArticleStats(_articleId);
-      state = ArticleStats(
-        likeCount: data['like_count']!,
-        viewCount: data['view_count']!,
-        commentCount: data['comment_count']!,
-      );
-    } catch (_) {}
-  }
-
-  void updateLikeCount(int count) => state = state.copyWith(likeCount: count);
-
-  void updateCommentCount(int count) =>
-      state = state.copyWith(commentCount: count);
-}
-
-final articleStatsProvider =
-    StateNotifierProvider.family<
-      ArticleStatsNotifier,
-      ArticleStats,
-      (String, ArticleStats)
-    >(
-      (ref, args) => ArticleStatsNotifier(
-        ref.read(readPageServiceProvider),
-        args.$1,
-        args.$2,
-      ),
-    );
-
-// ─── Like ─────────────────────────────────────────────────────
+final articleStatsStreamProvider = StreamProvider.family<ArticleStats, String>((
+  ref,
+  articleId,
+) {
+  return supabaseConfig.client
+      .from('articles')
+      .stream(primaryKey: ['id'])
+      .eq('id', articleId)
+      .map((rows) {
+        if (rows.isEmpty) {
+          return const ArticleStats(
+            likeCount: 0,
+            viewCount: 0,
+            commentCount: 0,
+          );
+        }
+        final row = rows.first;
+        return ArticleStats(
+          likeCount: row['like_count'] as int? ?? 0,
+          viewCount: row['view_count'] as int? ?? 0,
+          commentCount: row['comment_count'] as int? ?? 0,
+        );
+      });
+});
 
 class LikeState {
   final bool isLiked;
-  final int count;
-  const LikeState({required this.isLiked, required this.count});
+  const LikeState({required this.isLiked});
 }
 
 class LikeNotifier extends StateNotifier<AsyncValue<LikeState>> {
   final ReadPageService _service;
   final String _articleId;
-  final int _initialCount;
 
-  LikeNotifier(this._service, this._articleId, this._initialCount)
+  LikeNotifier(this._service, this._articleId)
     : super(const AsyncValue.loading()) {
     _load();
   }
@@ -101,7 +70,7 @@ class LikeNotifier extends StateNotifier<AsyncValue<LikeState>> {
   Future<void> _load() async {
     try {
       final liked = await _service.isLiked(_articleId);
-      state = AsyncValue.data(LikeState(isLiked: liked, count: _initialCount));
+      state = AsyncValue.data(LikeState(isLiked: liked));
     } catch (e, s) {
       state = AsyncValue.error(e, s);
     }
@@ -111,22 +80,11 @@ class LikeNotifier extends StateNotifier<AsyncValue<LikeState>> {
     final current = state.asData?.value;
     if (current == null) return;
 
-    // Optimistic update — UI langsung berubah sebelum server konfirmasi
-    final optimisticCount = current.isLiked
-        ? current.count - 1
-        : current.count + 1;
-    state = AsyncValue.data(
-      LikeState(isLiked: !current.isLiked, count: optimisticCount),
-    );
-
+    state = AsyncValue.data(LikeState(isLiked: !current.isLiked));
     try {
       final result = await _service.toggleLike(_articleId, current.isLiked);
-      // Gunakan count dari server (source of truth)
-      state = AsyncValue.data(
-        LikeState(isLiked: result.isLiked, count: result.count),
-      );
-    } catch (e, s) {
-      // Rollback jika error
+      state = AsyncValue.data(LikeState(isLiked: result.isLiked));
+    } catch (_) {
       state = AsyncValue.data(current);
     }
   }
@@ -136,13 +94,8 @@ final likeProvider =
     StateNotifierProvider.family<
       LikeNotifier,
       AsyncValue<LikeState>,
-      (String, int)
-    >(
-      (ref, args) =>
-          LikeNotifier(ref.read(readPageServiceProvider), args.$1, args.$2),
-    );
-
-// ─── Bookmark ─────────────────────────────────────────────────
+      (String, String)
+    >((ref, args) => LikeNotifier(ref.read(readPageServiceProvider), args.$1));
 
 class BookmarkNotifier extends StateNotifier<AsyncValue<bool>> {
   final ReadPageService _service;
@@ -166,34 +119,89 @@ class BookmarkNotifier extends StateNotifier<AsyncValue<bool>> {
     final current = state.asData?.value;
     if (current == null) return;
 
-    // Optimistic update
     state = AsyncValue.data(!current);
     try {
       await _service.toggleBookmark(_articleId, current);
     } catch (_) {
-      // Rollback
       state = AsyncValue.data(current);
     }
   }
 }
 
 final bookmarkProvider =
-    StateNotifierProvider.family<BookmarkNotifier, AsyncValue<bool>, String>(
-      (ref, articleId) =>
-          BookmarkNotifier(ref.read(readPageServiceProvider), articleId),
+    StateNotifierProvider.family<
+      BookmarkNotifier,
+      AsyncValue<bool>,
+      (String, String)
+    >(
+      (ref, args) =>
+          BookmarkNotifier(ref.read(readPageServiceProvider), args.$1),
     );
 
-// ─── Comments (Realtime) ──────────────────────────────────────
-// Menggunakan StreamProvider.family untuk realtime via Supabase stream()
-// Stream ini otomatis ter-update saat ada INSERT/UPDATE/DELETE di tabel comments
+final commentsRealtimeProvider =
+    StreamProvider.family<List<CommentModel>, String>((ref, articleId) async* {
+      final client = supabaseConfig.client;
 
-final commentsStreamProvider =
-    StreamProvider.family<List<CommentModel>, String>((ref, articleId) {
-      return ref.read(readPageServiceProvider).commentsStream(articleId);
+      final rawStream = client
+          .from('comments')
+          .stream(primaryKey: ['id'])
+          .eq('article_id', articleId)
+          .order('created_at', ascending: true);
+
+      await for (final rows in rawStream) {
+        final filtered = rows.where((r) => r['parent_id'] == null).toList();
+        if (filtered.isEmpty) {
+          yield [];
+          continue;
+        }
+
+        final userIds = filtered
+            .map((r) => r['user_id'] as String)
+            .toSet()
+            .toList();
+
+        try {
+          final usersRes = await client
+              .from('users')
+              .select('id,name,photo_url')
+              .inFilter('id', userIds);
+
+          final userMap = {
+            for (final u in usersRes as List)
+              u['id'] as String: u as Map<String, dynamic>,
+          };
+
+          yield filtered.map((r) {
+            final userData = userMap[r['user_id'] as String];
+            return CommentModel(
+              id: r['id'] as String,
+              articleId: r['article_id'] as String,
+              userId: r['user_id'] as String,
+              userName: userData?['name'] as String? ?? 'Pengguna',
+              userPhoto: userData?['photo_url'] as String?,
+              parentId: r['parent_id'] as String?,
+              commentText: r['comment_text'] as String? ?? '',
+              createdAt: DateTime.parse(r['created_at'] as String),
+            );
+          }).toList();
+        } catch (_) {
+          yield filtered
+              .map(
+                (r) => CommentModel(
+                  id: r['id'] as String,
+                  articleId: r['article_id'] as String,
+                  userId: r['user_id'] as String,
+                  userName: 'Pengguna',
+                  parentId: r['parent_id'] as String?,
+                  commentText: r['comment_text'] as String? ?? '',
+                  createdAt: DateTime.parse(r['created_at'] as String),
+                ),
+              )
+              .toList();
+        }
+      }
     });
 
-// Notifier terpisah untuk aksi addComment
-// StreamProvider sudah handle display, notifier ini hanya untuk write
 class CommentWriteNotifier extends StateNotifier<AsyncValue<void>> {
   final ReadPageService _service;
 
@@ -209,7 +217,7 @@ class CommentWriteNotifier extends StateNotifier<AsyncValue<void>> {
     try {
       await _service.addComment(
         articleId: articleId,
-        commentText: commentText,
+        commentText: commentText.trim(),
         parentId: parentId,
       );
       state = const AsyncValue.data(null);
@@ -223,8 +231,6 @@ final commentWriteProvider =
     StateNotifierProvider<CommentWriteNotifier, AsyncValue<void>>(
       (ref) => CommentWriteNotifier(ref.read(readPageServiceProvider)),
     );
-
-// ─── Follow ───────────────────────────────────────────────────
 
 class FollowNotifier extends StateNotifier<AsyncValue<bool>> {
   final ReadPageService _service;
@@ -248,25 +254,24 @@ class FollowNotifier extends StateNotifier<AsyncValue<bool>> {
     final current = state.asData?.value;
     if (current == null) return;
 
-    // Optimistic update
     state = AsyncValue.data(!current);
     try {
       final result = await _service.toggleFollow(_targetUserId, current);
       state = AsyncValue.data(result);
     } catch (_) {
-      // Rollback
       state = AsyncValue.data(current);
     }
   }
 }
 
 final followProvider =
-    StateNotifierProvider.family<FollowNotifier, AsyncValue<bool>, String>(
-      (ref, targetUserId) =>
-          FollowNotifier(ref.read(readPageServiceProvider), targetUserId),
+    StateNotifierProvider.family<
+      FollowNotifier,
+      AsyncValue<bool>,
+      (String, String)
+    >(
+      (ref, args) => FollowNotifier(ref.read(readPageServiceProvider), args.$1),
     );
-
-// ─── Report ───────────────────────────────────────────────────
 
 class ReportNotifier extends StateNotifier<AsyncValue<void>> {
   final ReadPageService _service;
