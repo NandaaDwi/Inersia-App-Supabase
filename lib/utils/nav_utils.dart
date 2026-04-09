@@ -6,7 +6,7 @@ class NavUtils {
     if (location == '/' || location == '/home') return 0;
     if (location == '/search') return 1;
     if (location == '/create-article') return 2;
-    if (location == '/list') return 3;
+    if (location == '/bookmark') return 3;
     if (location == '/profile') return 4;
     return 0;
   }
@@ -23,7 +23,7 @@ class NavUtils {
         context.push('/create-article');
         break;
       case 3:
-        context.push('/list');
+        context.push('/bookmark');
         break;
       case 4:
         context.go('/profile');

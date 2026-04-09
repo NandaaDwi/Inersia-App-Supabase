@@ -7,6 +7,7 @@ class NotificationModel extends Equatable {
   final String type;
   final String? articleId;
   final bool isRead;
+  final String message;
   final DateTime createdAt;
 
   const NotificationModel({
@@ -16,6 +17,7 @@ class NotificationModel extends Equatable {
     required this.type,
     this.articleId,
     required this.isRead,
+    required this.message,
     required this.createdAt,
   });
 
@@ -27,6 +29,7 @@ class NotificationModel extends Equatable {
       type: json['type'],
       articleId: json['article_id'],
       isRead: json['is_read'] ?? false,
+      message: json['message'] ?? [''],
       createdAt: DateTime.parse(json['created_at']),
     );
   }
@@ -38,6 +41,7 @@ class NotificationModel extends Equatable {
       'type': type,
       'article_id': articleId,
       'is_read': isRead,
+      'message': message,
     };
   }
 

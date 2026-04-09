@@ -4,6 +4,7 @@ import 'package:hooks_riverpod/hooks_riverpod.dart';
 import 'package:inersia_supabase/features/user/mainPage/providers/main_page_provider.dart';
 import 'package:inersia_supabase/features/user/mainPage/widgets/app_bottom_bar.dart';
 import 'package:inersia_supabase/features/user/mainPage/widgets/article_card.dart';
+import 'package:inersia_supabase/features/user/notification/providers/user_notification_provider.dart';
 import 'package:inersia_supabase/models/article_model.dart';
 import 'package:inersia_supabase/models/category_model.dart';
 import 'package:inersia_supabase/utils/nav_utils.dart';
@@ -50,6 +51,9 @@ class _MainPageState extends ConsumerState<MainPage> {
     final selectedCategory = ref.watch(selectedCategoryProvider);
     final location = GoRouterState.of(context).matchedLocation;
 
+    // Watch unread notification count
+    final unreadCountAsync = ref.watch(unreadCountProvider);
+
     return Scaffold(
       backgroundColor: const Color(0xFF0D0D0D),
       body: RefreshIndicator(
@@ -89,29 +93,61 @@ class _MainPageState extends ConsumerState<MainPage> {
                 ),
               ),
               actions: [
-                IconButton(
-                  icon: Stack(
-                    children: [
-                      const Icon(
-                        Icons.notifications_none_rounded,
-                        color: Colors.white,
-                        size: 26,
-                      ),
-                      Positioned(
-                        top: 0,
-                        right: 0,
-                        child: Container(
-                          width: 8,
-                          height: 8,
-                          decoration: const BoxDecoration(
-                            color: Color(0xFF2563EB),
-                            shape: BoxShape.circle,
-                          ),
+                // Notification bell dengan badge unread count
+                unreadCountAsync.when(
+                  data: (count) => IconButton(
+                    icon: Stack(
+                      children: [
+                        const Icon(
+                          Icons.notifications_none_rounded,
+                          color: Colors.white,
+                          size: 26,
                         ),
-                      ),
-                    ],
+                        if (count > 0)
+                          Positioned(
+                            top: 0,
+                            right: 0,
+                            child: Container(
+                              width: count > 9 ? 16 : 12,
+                              height: 12,
+                              decoration: const BoxDecoration(
+                                color: Color(0xFF2563EB),
+                                shape: BoxShape.circle,
+                              ),
+                              child: count > 9
+                                  ? const Center(
+                                      child: Text(
+                                        '9+',
+                                        style: TextStyle(
+                                          color: Colors.white,
+                                          fontSize: 7,
+                                          fontWeight: FontWeight.bold,
+                                        ),
+                                      ),
+                                    )
+                                  : null,
+                            ),
+                          ),
+                      ],
+                    ),
+                    onPressed: () => context.push('/notifications'),
                   ),
-                  onPressed: () {},
+                  loading: () => IconButton(
+                    icon: const Icon(
+                      Icons.notifications_none_rounded,
+                      color: Colors.white,
+                      size: 26,
+                    ),
+                    onPressed: () => context.push('/notifications'),
+                  ),
+                  error: (_, __) => IconButton(
+                    icon: const Icon(
+                      Icons.notifications_none_rounded,
+                      color: Colors.white,
+                      size: 26,
+                    ),
+                    onPressed: () => context.push('/notifications'),
+                  ),
                 ),
                 const SizedBox(width: 4),
               ],

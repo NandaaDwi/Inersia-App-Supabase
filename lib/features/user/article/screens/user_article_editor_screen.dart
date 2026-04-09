@@ -10,6 +10,7 @@ import 'package:inersia_supabase/features/user/article/providers/user_article_pr
 import 'package:inersia_supabase/models/article_model.dart';
 import 'package:inersia_supabase/models/category_model.dart';
 import 'package:inersia_supabase/models/tag_model.dart';
+import 'package:inersia_supabase/utils/word_filter_utils.dart';
 
 class UserArticleEditorScreen extends HookConsumerWidget {
   /// Null = buat baru, non-null = edit artikel yang sudah ada
@@ -24,9 +25,7 @@ class UserArticleEditorScreen extends HookConsumerWidget {
     );
     final categoryController = useTextEditingController();
     final selectedCategoryId = useState<String?>(article?.categoryId);
-    final selectedTags = useState<List<TagModel>>(
-      const [],
-    );
+    final selectedTags = useState<List<TagModel>>(const []);
     final isCategoryLoading = useState(false);
     final isSaving = useState(false);
     final thumbnail = useState<File?>(null);
@@ -151,7 +150,8 @@ class UserArticleEditorScreen extends HookConsumerWidget {
     }
 
     Future<void> handleSave(String status) async {
-      if (titleController.text.trim().isEmpty) {
+      final title = titleController.text.trim();
+      if (title.isEmpty) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Judul artikel tidak boleh kosong!')),
         );
@@ -171,6 +171,23 @@ class UserArticleEditorScreen extends HookConsumerWidget {
             content: Text('Isi konten artikel tidak boleh kosong!'),
           ),
         );
+        return;
+      }
+
+      final fullText = "$title $plainText";
+      final badWords = WordFilterUtils.checkBadWords(fullText);
+
+      if (badWords.isNotEmpty) {
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(
+                'Konten mengandung kata kasar: ${badWords.join(", ")}',
+              ),
+              backgroundColor: const Color(0xFFDC2626),
+            ),
+          );
+        }
         return;
       }
 
@@ -212,10 +229,7 @@ class UserArticleEditorScreen extends HookConsumerWidget {
               backgroundColor: const Color(0xFF059669),
             ),
           );
-          Navigator.pop(
-            context,
-            true,
-          ); 
+          Navigator.pop(context, true);
         }
       } catch (e) {
         if (context.mounted) {

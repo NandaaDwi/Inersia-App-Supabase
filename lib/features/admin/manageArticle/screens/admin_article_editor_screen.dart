@@ -9,6 +9,7 @@ import 'package:inersia_supabase/features/admin/manageArticle/widgets/thumbnail_
 import 'package:inersia_supabase/features/admin/manageCategoryTag/services/admin_category_service.dart';
 import 'package:inersia_supabase/models/article_model.dart';
 import 'package:inersia_supabase/models/tag_model.dart';
+import 'package:inersia_supabase/utils/word_filter_utils.dart';
 import '../widgets/editor_category_tag_section.dart';
 import '../widgets/editor_rich_text.dart';
 
@@ -59,6 +60,35 @@ class ArticleEditorScreen extends HookConsumerWidget {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text("Pilih kategori terlebih dahulu!")),
         );
+        return;
+      }
+
+      final title = titleController.text.trim();
+      final plainText = quillController.document.toPlainText().trim();
+
+      if (title.isEmpty || plainText.isEmpty) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text("Judul dan isi artikel tidak boleh kosong!"),
+          ),
+        );
+        return;
+      }
+
+      final combinedText = "$title $plainText";
+      final badWordsFound = WordFilterUtils.checkBadWords(combinedText);
+
+      if (badWordsFound.isNotEmpty) {
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(
+                'Ditemukan kata terlarang (${badWordsFound.join(", ")})',
+              ),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
         return;
       }
 

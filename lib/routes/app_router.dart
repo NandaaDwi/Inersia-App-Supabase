@@ -15,10 +15,13 @@ import 'package:inersia_supabase/features/auth/screens/login_screen.dart';
 import 'package:inersia_supabase/features/auth/screens/register_screen.dart';
 import 'package:inersia_supabase/features/auth/screens/reset_password_screen.dart';
 import 'package:inersia_supabase/features/user/article/screens/user_article_editor_screen.dart';
+import 'package:inersia_supabase/features/user/bookmark/screens/bookmark_screen.dart';
 import 'package:inersia_supabase/features/user/mainPage/screens/article_read_screen.dart';
 import 'package:inersia_supabase/features/user/mainPage/screens/main_page.dart';
+import 'package:inersia_supabase/features/user/notification/screens/user_notification_screen.dart';
 import 'package:inersia_supabase/features/user/profile/screens/profile_screen.dart';
 import 'package:inersia_supabase/features/user/search/screens/search_screen.dart';
+import 'package:inersia_supabase/features/user/search/screens/search_user_profile_screen.dart';
 import 'package:inersia_supabase/models/article_model.dart';
 
 Page<void> _buildPage<T>({
@@ -137,6 +140,21 @@ final routerProvider = Provider<GoRouter>((ref) {
             _buildPage(state: state, child: const SearchScreen()),
       ),
       GoRoute(
+        path: '/bookmark',
+        pageBuilder: (context, state) =>
+            _buildPage(state: state, child: const BookmarkScreen()),
+      ),
+      GoRoute(
+        path: '/user/:id',
+        pageBuilder: (context, state) {
+          final userId = state.pathParameters['id']!;
+          return _buildPage(
+            state: state,
+            child: SearchUserProfileScreen(userId: userId),
+          );
+        },
+      ),
+      GoRoute(
         path: '/article/:id',
         redirect: (context, state) {
           final article = state.extra;
@@ -152,6 +170,11 @@ final routerProvider = Provider<GoRouter>((ref) {
             child: ArticleReadScreen(article: article),
           );
         },
+      ),
+      GoRoute(
+        path: '/notifications',
+        pageBuilder: (context, state) =>
+            _buildPage(state: state, child: const UserNotificationScreen()),
       ),
       GoRoute(
         path: '/profile',

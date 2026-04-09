@@ -16,514 +16,663 @@ class ArticleReadScreen extends HookConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final currentUserId = supabaseConfig.client.auth.currentUser?.id ?? '';
 
+    // Fetch data lengkap dari DB — ini menjamin konten selalu ada
+    // bahkan jika datang dari search (yang hanya punya data parsial)
+    final articleAsync = ref.watch(articleDetailProvider(article.id));
+
     final commentController = useTextEditingController();
     final commentFocusNode = useFocusNode();
 
-    // Key sertakan userId agar provider fresh saat beda user login
     final likeKey = (article.id, currentUserId);
     final bookmarkKey = (article.id, currentUserId);
-    final followKey = (article.authorId, currentUserId);
 
     final likeState = ref.watch(likeProvider(likeKey));
     final bookmarkState = ref.watch(bookmarkProvider(bookmarkKey));
-    final followState = ref.watch(followProvider(followKey));
 
-    // Realtime stats dari Supabase stream — otomatis update
     final statsAsync = ref.watch(articleStatsStreamProvider(article.id));
-
-    // Realtime komentar dengan user info
     final commentsAsync = ref.watch(commentsRealtimeProvider(article.id));
     final commentWrite = ref.watch(commentWriteProvider);
 
-    final contentParagraphs = _parseContent(article.content);
-
-    return Scaffold(
-      backgroundColor: const Color(0xFF0D0D0D),
-      body: CustomScrollView(
-        slivers: [
-          SliverAppBar(
-            expandedHeight: 280,
-            pinned: true,
-            backgroundColor: const Color(0xFF0D0D0D),
-            leading: Container(
-              margin: const EdgeInsets.all(8),
-              decoration: BoxDecoration(
-                color: Colors.black.withOpacity(0.5),
-                shape: BoxShape.circle,
-              ),
-              child: IconButton(
-                icon: const Icon(
-                  Icons.arrow_back_ios_new,
-                  color: Colors.white,
-                  size: 16,
-                ),
-                onPressed: () => Navigator.pop(context),
-              ),
+    return articleAsync.when(
+      loading: () => Scaffold(
+        backgroundColor: const Color(0xFF0D0D0D),
+        body: _buildLoadingScaffold(article, context),
+      ),
+      error: (e, _) => Scaffold(
+        backgroundColor: const Color(0xFF0D0D0D),
+        appBar: AppBar(
+          backgroundColor: const Color(0xFF0D0D0D),
+          leading: IconButton(
+            icon: const Icon(
+              Icons.arrow_back_ios_new,
+              color: Colors.white,
+              size: 16,
             ),
-            actions: [
-              Container(
-                margin: const EdgeInsets.all(8),
-                decoration: BoxDecoration(
-                  color: Colors.black.withOpacity(0.5),
-                  shape: BoxShape.circle,
-                ),
-                child: IconButton(
-                  icon: const Icon(
-                    Icons.flag_outlined,
-                    color: Colors.white,
-                    size: 20,
+            onPressed: () => Navigator.pop(context),
+          ),
+        ),
+        body: Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              const Icon(
+                Icons.error_outline,
+                color: Color(0xFF6B7280),
+                size: 48,
+              ),
+              const SizedBox(height: 12),
+              const Text(
+                'Gagal memuat artikel',
+                style: TextStyle(color: Color(0xFF6B7280)),
+              ),
+              const SizedBox(height: 16),
+              ElevatedButton(
+                onPressed: () =>
+                    ref.invalidate(articleDetailProvider(article.id)),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFF2563EB),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(10),
                   ),
-                  onPressed: () => _showReportDialog(
-                    context: context,
-                    ref: ref,
-                    targetId: article.id,
-                    targetType: 'article',
-                    snapshot: article.toJson(),
+                ),
+                child: const Text('Coba Lagi'),
+              ),
+            ],
+          ),
+        ),
+      ),
+      data: (fullArticle) {
+        final followKey = (fullArticle.authorId, currentUserId);
+        final followState = ref.watch(followProvider(followKey));
+        final contentParagraphs = _parseContent(fullArticle.content);
+
+        return Scaffold(
+          backgroundColor: const Color(0xFF0D0D0D),
+          body: CustomScrollView(
+            slivers: [
+              SliverAppBar(
+                expandedHeight: 280,
+                pinned: true,
+                backgroundColor: const Color(0xFF0D0D0D),
+                leading: Container(
+                  margin: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: Colors.black.withOpacity(0.5),
+                    shape: BoxShape.circle,
+                  ),
+                  child: IconButton(
+                    icon: const Icon(
+                      Icons.arrow_back_ios_new,
+                      color: Colors.white,
+                      size: 16,
+                    ),
+                    onPressed: () => Navigator.pop(context),
+                  ),
+                ),
+                actions: [
+                  Container(
+                    margin: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: Colors.black.withOpacity(0.5),
+                      shape: BoxShape.circle,
+                    ),
+                    child: IconButton(
+                      icon: const Icon(
+                        Icons.flag_outlined,
+                        color: Colors.white,
+                        size: 20,
+                      ),
+                      onPressed: () => _showReportDialog(
+                        context: context,
+                        ref: ref,
+                        targetId: fullArticle.id,
+                        targetType: 'article',
+                        snapshot: fullArticle.toJson(),
+                      ),
+                    ),
+                  ),
+                ],
+                flexibleSpace: FlexibleSpaceBar(
+                  background: Stack(
+                    fit: StackFit.expand,
+                    children: [
+                      fullArticle.thumbnail != null
+                          ? Image.network(
+                              fullArticle.thumbnail!,
+                              fit: BoxFit.cover,
+                              errorBuilder: (_, __, ___) => _thumbPlaceholder(),
+                            )
+                          : _thumbPlaceholder(),
+                      DecoratedBox(
+                        decoration: BoxDecoration(
+                          gradient: LinearGradient(
+                            begin: Alignment.topCenter,
+                            end: Alignment.bottomCenter,
+                            colors: [
+                              Colors.transparent,
+                              const Color(0xFF0D0D0D).withOpacity(0.85),
+                              const Color(0xFF0D0D0D),
+                            ],
+                            stops: const [0.3, 0.75, 1.0],
+                          ),
+                        ),
+                      ),
+                      Positioned(
+                        left: 20,
+                        right: 20,
+                        bottom: 16,
+                        child: Text(
+                          fullArticle.title,
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 24,
+                            fontWeight: FontWeight.w800,
+                            height: 1.25,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+
+              SliverToBoxAdapter(
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(20, 0, 20, 0),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // Author Row
+                      Row(
+                        children: [
+                          CircleAvatar(
+                            radius: 20,
+                            backgroundColor: const Color(0xFF1F2937),
+                            backgroundImage: fullArticle.authorPhoto != null
+                                ? NetworkImage(fullArticle.authorPhoto!)
+                                : null,
+                            child: fullArticle.authorPhoto == null
+                                ? Text(
+                                    fullArticle.authorName.isNotEmpty
+                                        ? fullArticle.authorName[0]
+                                              .toUpperCase()
+                                        : 'U',
+                                    style: const TextStyle(
+                                      color: Colors.white,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  )
+                                : null,
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  fullArticle.authorName,
+                                  style: const TextStyle(
+                                    color: Colors.white,
+                                    fontWeight: FontWeight.w600,
+                                    fontSize: 14,
+                                  ),
+                                ),
+                                Text(
+                                  '${AppDateUtils.formatDate(fullArticle.createdAt)}  •  ${fullArticle.estimatedReading} menit baca',
+                                  style: const TextStyle(
+                                    color: Color(0xFF6B7280),
+                                    fontSize: 12,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          if (fullArticle.authorId != currentUserId)
+                            followState.when(
+                              data: (isFollowing) => _FollowButton(
+                                isFollowing: isFollowing,
+                                onTap: () => ref
+                                    .read(followProvider(followKey).notifier)
+                                    .toggle(),
+                              ),
+                              loading: () => const SizedBox(
+                                width: 80,
+                                height: 32,
+                                child: LinearProgressIndicator(
+                                  color: Color(0xFF2563EB),
+                                ),
+                              ),
+                              error: (_, __) => const SizedBox.shrink(),
+                            ),
+                        ],
+                      ),
+                      const SizedBox(height: 24),
+
+                      // Isi Artikel
+                      ...contentParagraphs.map(
+                        (para) => Padding(
+                          padding: const EdgeInsets.only(bottom: 16),
+                          child: Text(
+                            para,
+                            style: const TextStyle(
+                              color: Color(0xFFD1D5DB),
+                              fontSize: 15,
+                              height: 1.75,
+                              letterSpacing: 0.1,
+                            ),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+
+                      // Tags
+                      if (fullArticle.tags.isNotEmpty)
+                        Wrap(
+                          spacing: 8,
+                          runSpacing: 8,
+                          children: fullArticle.tags
+                              .map(
+                                (tag) => Container(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 12,
+                                    vertical: 5,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color: const Color(0xFF161616),
+                                    borderRadius: BorderRadius.circular(20),
+                                    border: Border.all(
+                                      color: const Color(0xFF1F2937),
+                                    ),
+                                  ),
+                                  child: Text(
+                                    '#${tag.name}',
+                                    style: const TextStyle(
+                                      color: Color(0xFF6B7280),
+                                      fontSize: 13,
+                                    ),
+                                  ),
+                                ),
+                              )
+                              .toList(),
+                        ),
+                      const SizedBox(height: 24),
+
+                      // Stats Bar — realtime
+                      statsAsync.when(
+                        data: (stats) => Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 20,
+                            vertical: 16,
+                          ),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFF111827),
+                            borderRadius: BorderRadius.circular(16),
+                          ),
+                          child: Row(
+                            children: [
+                              _StatItem(
+                                value: _fmt(stats.likeCount),
+                                label: 'Suka',
+                              ),
+                              _StatDivider(),
+                              _StatItem(
+                                value: _fmt(stats.viewCount),
+                                label: 'Dilihat',
+                              ),
+                              _StatDivider(),
+                              // Gunakan jumlah komentar realtime dari stream komentar
+                              // agar sinkron saat admin hapus komentar
+                              commentsAsync.when(
+                                data: (comments) => _StatItem(
+                                  value: _fmt(comments.length),
+                                  label: 'Komentar',
+                                ),
+                                loading: () => _StatItem(
+                                  value: _fmt(stats.commentCount),
+                                  label: 'Komentar',
+                                ),
+                                error: (_, __) => _StatItem(
+                                  value: _fmt(stats.commentCount),
+                                  label: 'Komentar',
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        loading: () => Container(
+                          height: 72,
+                          decoration: BoxDecoration(
+                            color: const Color(0xFF111827),
+                            borderRadius: BorderRadius.circular(16),
+                          ),
+                          child: const Center(
+                            child: CircularProgressIndicator(
+                              color: Color(0xFF2563EB),
+                              strokeWidth: 2,
+                            ),
+                          ),
+                        ),
+                        error: (_, __) => const SizedBox.shrink(),
+                      ),
+                      const SizedBox(height: 32),
+
+                      // Komentar Header
+                      Row(
+                        children: [
+                          const Text(
+                            'Komentar',
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontSize: 18,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          commentsAsync.when(
+                            data: (c) => Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 8,
+                                vertical: 2,
+                              ),
+                              decoration: BoxDecoration(
+                                color: const Color(0xFF1E3A5F),
+                                borderRadius: BorderRadius.circular(10),
+                              ),
+                              child: Text(
+                                '${c.length}',
+                                style: const TextStyle(
+                                  color: Color(0xFF60A5FA),
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                            ),
+                            loading: () => const SizedBox.shrink(),
+                            error: (_, __) => const SizedBox.shrink(),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 16),
+
+                      // Comment Input
+                      _CommentInput(
+                        controller: commentController,
+                        focusNode: commentFocusNode,
+                        isSending: commentWrite.isLoading,
+                        onSend: () async {
+                          final text = commentController.text.trim();
+                          if (text.isEmpty) return;
+                          await ref
+                              .read(commentWriteProvider.notifier)
+                              .addComment(
+                                articleId: fullArticle.id,
+                                commentText: text,
+                              );
+                          if (!ref.read(commentWriteProvider).hasError) {
+                            commentController.clear();
+                            commentFocusNode.unfocus();
+                          }
+                        },
+                      ),
+
+                      if (commentWrite.hasError)
+                        const Padding(
+                          padding: EdgeInsets.only(top: 8),
+                          child: Text(
+                            'Gagal mengirim komentar. Coba lagi.',
+                            style: TextStyle(
+                              color: Color(0xFFEF4444),
+                              fontSize: 12,
+                            ),
+                          ),
+                        ),
+                      const SizedBox(height: 20),
+
+                      // Comment List — realtime
+                      commentsAsync.when(
+                        data: (comments) => comments.isEmpty
+                            ? const Padding(
+                                padding: EdgeInsets.symmetric(vertical: 24),
+                                child: Center(
+                                  child: Text(
+                                    'Belum ada komentar. Jadilah yang pertama!',
+                                    style: TextStyle(color: Color(0xFF6B7280)),
+                                  ),
+                                ),
+                              )
+                            : Column(
+                                children: comments
+                                    .map(
+                                      (c) => _CommentItem(
+                                        comment: c,
+                                        currentUserId: currentUserId,
+                                        onReport: () => _showReportDialog(
+                                          context: context,
+                                          ref: ref,
+                                          targetId: c.id,
+                                          targetType: 'comment',
+                                          snapshot: {
+                                            'comment_text': c.commentText,
+                                            'user_id': c.userId,
+                                          },
+                                        ),
+                                      ),
+                                    )
+                                    .toList(),
+                              ),
+                        loading: () => const Padding(
+                          padding: EdgeInsets.symmetric(vertical: 24),
+                          child: Center(
+                            child: CircularProgressIndicator(
+                              color: Color(0xFF2563EB),
+                              strokeWidth: 2,
+                            ),
+                          ),
+                        ),
+                        error: (e, _) => const Padding(
+                          padding: EdgeInsets.symmetric(vertical: 16),
+                          child: Text(
+                            'Gagal memuat komentar.',
+                            style: TextStyle(color: Color(0xFF6B7280)),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 32),
+                    ],
                   ),
                 ),
               ),
             ],
-            flexibleSpace: FlexibleSpaceBar(
-              background: Stack(
-                fit: StackFit.expand,
-                children: [
-                  article.thumbnail != null
-                      ? Image.network(
-                          article.thumbnail!,
-                          fit: BoxFit.cover,
-                          errorBuilder: (_, __, ___) => _thumbPlaceholder(),
-                        )
-                      : _thumbPlaceholder(),
-                  DecoratedBox(
-                    decoration: BoxDecoration(
-                      gradient: LinearGradient(
-                        begin: Alignment.topCenter,
-                        end: Alignment.bottomCenter,
-                        colors: [
-                          Colors.transparent,
-                          const Color(0xFF0D0D0D).withOpacity(0.85),
-                          const Color(0xFF0D0D0D),
-                        ],
-                        stops: const [0.3, 0.75, 1.0],
-                      ),
-                    ),
-                  ),
-                  Positioned(
-                    left: 20,
-                    right: 20,
-                    bottom: 16,
-                    child: Text(
-                      article.title,
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 24,
-                        fontWeight: FontWeight.w800,
-                        height: 1.25,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
           ),
 
-          SliverToBoxAdapter(
-            child: Padding(
-              padding: const EdgeInsets.fromLTRB(20, 0, 20, 0),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // Author Row
-                  Row(
-                    children: [
-                      CircleAvatar(
-                        radius: 20,
-                        backgroundColor: const Color(0xFF1F2937),
-                        backgroundImage: article.authorPhoto != null
-                            ? NetworkImage(article.authorPhoto!)
-                            : null,
-                        child: article.authorPhoto == null
-                            ? Text(
-                                article.authorName.isNotEmpty
-                                    ? article.authorName[0].toUpperCase()
-                                    : 'U',
-                                style: const TextStyle(
-                                  color: Colors.white,
-                                  fontWeight: FontWeight.bold,
+          // Bottom Bar
+          bottomNavigationBar: Container(
+            decoration: const BoxDecoration(
+              color: Color(0xFF111827),
+              border: Border(
+                top: BorderSide(color: Color(0xFF1F2937), width: 0.5),
+              ),
+            ),
+            child: SafeArea(
+              top: false,
+              child: Padding(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 24,
+                  vertical: 12,
+                ),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    likeState.when(
+                      data: (like) => statsAsync.when(
+                        data: (stats) => GestureDetector(
+                          onTap: () =>
+                              ref.read(likeProvider(likeKey).notifier).toggle(),
+                          child: AnimatedSwitcher(
+                            duration: const Duration(milliseconds: 200),
+                            child: Row(
+                              key: ValueKey(like.isLiked),
+                              children: [
+                                Icon(
+                                  like.isLiked
+                                      ? Icons.favorite
+                                      : Icons.favorite_border,
+                                  color: like.isLiked
+                                      ? const Color(0xFFEF4444)
+                                      : const Color(0xFF6B7280),
+                                  size: 26,
                                 ),
-                              )
-                            : null,
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              article.authorName,
-                              style: const TextStyle(
-                                color: Colors.white,
-                                fontWeight: FontWeight.w600,
-                                fontSize: 14,
-                              ),
-                            ),
-                            Text(
-                              '${AppDateUtils.formatDate(article.createdAt)}  •  ${article.estimatedReading} menit baca',
-                              style: const TextStyle(
-                                color: Color(0xFF6B7280),
-                                fontSize: 12,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                      // Tidak tampilkan tombol follow jika artikel milik sendiri
-                      if (article.authorId != currentUserId)
-                        followState.when(
-                          data: (isFollowing) => _FollowButton(
-                            isFollowing: isFollowing,
-                            onTap: () => ref
-                                .read(followProvider(followKey).notifier)
-                                .toggle(),
-                          ),
-                          loading: () => const SizedBox(
-                            width: 80,
-                            height: 32,
-                            child: LinearProgressIndicator(
-                              color: Color(0xFF2563EB),
-                            ),
-                          ),
-                          error: (_, __) => const SizedBox.shrink(),
-                        ),
-                    ],
-                  ),
-                  const SizedBox(height: 24),
-
-                  // Isi Artikel
-                  ...contentParagraphs.map(
-                    (para) => Padding(
-                      padding: const EdgeInsets.only(bottom: 16),
-                      child: Text(
-                        para,
-                        style: const TextStyle(
-                          color: Color(0xFFD1D5DB),
-                          fontSize: 15,
-                          height: 1.75,
-                          letterSpacing: 0.1,
-                        ),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-
-                  // Tags
-                  if (article.tags.isNotEmpty)
-                    Wrap(
-                      spacing: 8,
-                      runSpacing: 8,
-                      children: article.tags
-                          .map(
-                            (tag) => Container(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 12,
-                                vertical: 5,
-                              ),
-                              decoration: BoxDecoration(
-                                color: const Color(0xFF161616),
-                                borderRadius: BorderRadius.circular(20),
-                                border: Border.all(
-                                  color: const Color(0xFF1F2937),
-                                ),
-                              ),
-                              child: Text(
-                                '#${tag.name}',
-                                style: const TextStyle(
-                                  color: Color(0xFF6B7280),
-                                  fontSize: 13,
-                                ),
-                              ),
-                            ),
-                          )
-                          .toList(),
-                    ),
-                  const SizedBox(height: 24),
-
-                  // Stats Bar — realtime dari stream
-                  statsAsync.when(
-                    data: (stats) => Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 20,
-                        vertical: 16,
-                      ),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFF111827),
-                        borderRadius: BorderRadius.circular(16),
-                      ),
-                      child: Row(
-                        children: [
-                          _StatItem(
-                            value: _fmt(stats.likeCount),
-                            label: 'Suka',
-                          ),
-                          _StatDivider(),
-                          _StatItem(
-                            value: _fmt(stats.viewCount),
-                            label: 'Dilihat',
-                          ),
-                          _StatDivider(),
-                          _StatItem(
-                            value: _fmt(stats.commentCount),
-                            label: 'Komentar',
-                          ),
-                        ],
-                      ),
-                    ),
-                    loading: () => Container(
-                      height: 72,
-                      decoration: BoxDecoration(
-                        color: const Color(0xFF111827),
-                        borderRadius: BorderRadius.circular(16),
-                      ),
-                      child: const Center(
-                        child: CircularProgressIndicator(
-                          color: Color(0xFF2563EB),
-                          strokeWidth: 2,
-                        ),
-                      ),
-                    ),
-                    error: (_, __) => const SizedBox.shrink(),
-                  ),
-                  const SizedBox(height: 32),
-
-                  // Komentar Header
-                  Row(
-                    children: [
-                      const Text(
-                        'Komentar',
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontSize: 18,
-                          fontWeight: FontWeight.w700,
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                      commentsAsync.when(
-                        data: (c) => Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 8,
-                            vertical: 2,
-                          ),
-                          decoration: BoxDecoration(
-                            color: const Color(0xFF1E3A5F),
-                            borderRadius: BorderRadius.circular(10),
-                          ),
-                          child: Text(
-                            '${c.length}',
-                            style: const TextStyle(
-                              color: Color(0xFF60A5FA),
-                              fontSize: 12,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                        ),
-                        loading: () => const SizedBox.shrink(),
-                        error: (_, __) => const SizedBox.shrink(),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 16),
-
-                  // Comment Input
-                  _CommentInput(
-                    controller: commentController,
-                    focusNode: commentFocusNode,
-                    isSending: commentWrite.isLoading,
-                    onSend: () async {
-                      final text = commentController.text.trim();
-                      if (text.isEmpty) return;
-                      await ref
-                          .read(commentWriteProvider.notifier)
-                          .addComment(articleId: article.id, commentText: text);
-                      if (!ref.read(commentWriteProvider).hasError) {
-                        commentController.clear();
-                        commentFocusNode.unfocus();
-                      }
-                    },
-                  ),
-
-                  if (commentWrite.hasError)
-                    Padding(
-                      padding: const EdgeInsets.only(top: 8),
-                      child: Text(
-                        'Gagal mengirim komentar. Coba lagi.',
-                        style: const TextStyle(
-                          color: Color(0xFFEF4444),
-                          fontSize: 12,
-                        ),
-                      ),
-                    ),
-                  const SizedBox(height: 20),
-
-                  // Comment List — realtime
-                  commentsAsync.when(
-                    data: (comments) => comments.isEmpty
-                        ? const Padding(
-                            padding: EdgeInsets.symmetric(vertical: 24),
-                            child: Center(
-                              child: Text(
-                                'Belum ada komentar. Jadilah yang pertama!',
-                                style: TextStyle(color: Color(0xFF6B7280)),
-                              ),
-                            ),
-                          )
-                        : Column(
-                            children: comments
-                                .map(
-                                  (c) => _CommentItem(
-                                    comment: c,
-                                    currentUserId: currentUserId,
-                                    onReport: () => _showReportDialog(
-                                      context: context,
-                                      ref: ref,
-                                      targetId: c.id,
-                                      targetType: 'comment',
-                                      snapshot: {
-                                        'comment_text': c.commentText,
-                                        'user_id': c.userId,
-                                      },
-                                    ),
+                                const SizedBox(width: 8),
+                                Text(
+                                  _fmt(stats.likeCount),
+                                  style: TextStyle(
+                                    color: like.isLiked
+                                        ? const Color(0xFFEF4444)
+                                        : const Color(0xFF9CA3AF),
+                                    fontSize: 15,
+                                    fontWeight: FontWeight.w600,
                                   ),
-                                )
-                                .toList(),
+                                ),
+                              ],
+                            ),
                           ),
-                    loading: () => const Padding(
-                      padding: EdgeInsets.symmetric(vertical: 24),
-                      child: Center(
-                        child: CircularProgressIndicator(
-                          color: Color(0xFF2563EB),
-                          strokeWidth: 2,
                         ),
-                      ),
-                    ),
-                    error: (e, _) => Padding(
-                      padding: const EdgeInsets.symmetric(vertical: 16),
-                      child: Text(
-                        'Gagal memuat komentar.',
-                        style: const TextStyle(color: Color(0xFF6B7280)),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 32),
-                ],
-              ),
-            ),
-          ),
-        ],
-      ),
-
-      // Bottom Bar — Like & Bookmark
-      bottomNavigationBar: Container(
-        decoration: const BoxDecoration(
-          color: Color(0xFF111827),
-          border: Border(top: BorderSide(color: Color(0xFF1F2937), width: 0.5)),
-        ),
-        child: SafeArea(
-          top: false,
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                // Like Button — isLiked dari likeProvider, count dari statsStream
-                likeState.when(
-                  data: (like) => statsAsync.when(
-                    data: (stats) => GestureDetector(
-                      onTap: () =>
-                          ref.read(likeProvider(likeKey).notifier).toggle(),
-                      child: AnimatedSwitcher(
-                        duration: const Duration(milliseconds: 200),
-                        child: Row(
-                          key: ValueKey(like.isLiked),
+                        loading: () => Row(
                           children: [
-                            Icon(
-                              like.isLiked
-                                  ? Icons.favorite
-                                  : Icons.favorite_border,
-                              color: like.isLiked
-                                  ? const Color(0xFFEF4444)
-                                  : const Color(0xFF6B7280),
+                            const Icon(
+                              Icons.favorite_border,
+                              color: Color(0xFF6B7280),
                               size: 26,
                             ),
                             const SizedBox(width: 8),
                             Text(
-                              _fmt(stats.likeCount),
-                              style: TextStyle(
-                                color: like.isLiked
-                                    ? const Color(0xFFEF4444)
-                                    : const Color(0xFF9CA3AF),
+                              _fmt(fullArticle.likeCount),
+                              style: const TextStyle(
+                                color: Color(0xFF9CA3AF),
                                 fontSize: 15,
                                 fontWeight: FontWeight.w600,
                               ),
                             ),
                           ],
                         ),
+                        error: (_, __) => const SizedBox.shrink(),
                       ),
-                    ),
-                    loading: () => Row(
-                      children: [
-                        const Icon(
-                          Icons.favorite_border,
-                          color: Color(0xFF6B7280),
-                          size: 26,
+                      loading: () => const SizedBox(
+                        width: 60,
+                        child: LinearProgressIndicator(
+                          color: Color(0xFF2563EB),
                         ),
-                        const SizedBox(width: 8),
-                        Text(
-                          _fmt(article.likeCount),
-                          style: const TextStyle(
-                            color: Color(0xFF9CA3AF),
-                            fontSize: 15,
-                            fontWeight: FontWeight.w600,
+                      ),
+                      error: (_, __) => const SizedBox.shrink(),
+                    ),
+
+                    bookmarkState.when(
+                      data: (isBookmarked) => GestureDetector(
+                        onTap: () => ref
+                            .read(bookmarkProvider(bookmarkKey).notifier)
+                            .toggle(),
+                        child: AnimatedSwitcher(
+                          duration: const Duration(milliseconds: 200),
+                          child: Icon(
+                            key: ValueKey(isBookmarked),
+                            isBookmarked
+                                ? Icons.bookmark
+                                : Icons.bookmark_border_rounded,
+                            color: isBookmarked
+                                ? const Color(0xFF2563EB)
+                                : const Color(0xFF6B7280),
+                            size: 26,
                           ),
                         ),
-                      ],
-                    ),
-                    error: (_, __) => const SizedBox.shrink(),
-                  ),
-                  loading: () => const SizedBox(
-                    width: 60,
-                    child: LinearProgressIndicator(color: Color(0xFF2563EB)),
-                  ),
-                  error: (_, __) => const SizedBox.shrink(),
-                ),
-
-                // Bookmark Button
-                bookmarkState.when(
-                  data: (isBookmarked) => GestureDetector(
-                    onTap: () => ref
-                        .read(bookmarkProvider(bookmarkKey).notifier)
-                        .toggle(),
-                    child: AnimatedSwitcher(
-                      duration: const Duration(milliseconds: 200),
-                      child: Icon(
-                        key: ValueKey(isBookmarked),
-                        isBookmarked
-                            ? Icons.bookmark
-                            : Icons.bookmark_border_rounded,
-                        color: isBookmarked
-                            ? const Color(0xFF2563EB)
-                            : const Color(0xFF6B7280),
-                        size: 26,
                       ),
+                      loading: () => const SizedBox(width: 26, height: 26),
+                      error: (_, __) => const SizedBox.shrink(),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  // Skeleton loading saat fetch artikel
+  Widget _buildLoadingScaffold(ArticleModel article, BuildContext context) {
+    return CustomScrollView(
+      slivers: [
+        SliverAppBar(
+          expandedHeight: 280,
+          pinned: true,
+          backgroundColor: const Color(0xFF0D0D0D),
+          leading: Container(
+            margin: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: Colors.black.withOpacity(0.5),
+              shape: BoxShape.circle,
+            ),
+            child: IconButton(
+              icon: const Icon(
+                Icons.arrow_back_ios_new,
+                color: Colors.white,
+                size: 16,
+              ),
+              onPressed: () => Navigator.pop(context),
+            ),
+          ),
+          flexibleSpace: FlexibleSpaceBar(
+            background: Stack(
+              fit: StackFit.expand,
+              children: [
+                article.thumbnail != null
+                    ? Image.network(
+                        article.thumbnail!,
+                        fit: BoxFit.cover,
+                        errorBuilder: (_, __, ___) => _thumbPlaceholder(),
+                      )
+                    : _thumbPlaceholder(),
+                DecoratedBox(
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      begin: Alignment.topCenter,
+                      end: Alignment.bottomCenter,
+                      colors: [
+                        Colors.transparent,
+                        const Color(0xFF0D0D0D).withOpacity(0.85),
+                        const Color(0xFF0D0D0D),
+                      ],
+                      stops: const [0.3, 0.75, 1.0],
                     ),
                   ),
-                  loading: () => const SizedBox(width: 26, height: 26),
-                  error: (_, __) => const SizedBox.shrink(),
+                ),
+                Positioned(
+                  left: 20,
+                  right: 20,
+                  bottom: 16,
+                  child: Text(
+                    article.title,
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 24,
+                      fontWeight: FontWeight.w800,
+                      height: 1.25,
+                    ),
+                  ),
                 ),
               ],
             ),
           ),
         ),
-      ),
+        const SliverFillRemaining(
+          child: Center(
+            child: CircularProgressIndicator(
+              color: Color(0xFF2563EB),
+              strokeWidth: 2,
+            ),
+          ),
+        ),
+      ],
     );
   }
 
@@ -736,7 +885,6 @@ class _CommentItem extends StatelessWidget {
                       ),
                     ),
                     const Spacer(),
-                    // Hanya tampilkan report jika bukan komentar sendiri
                     if (comment.userId != currentUserId)
                       GestureDetector(
                         onTap: onReport,
