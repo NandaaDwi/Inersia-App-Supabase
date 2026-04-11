@@ -10,7 +10,6 @@ class AuthService {
     required String name,
     required String username,
   }) async {
-    // Cek username tidak duplikat sebelum mendaftar
     final existing = await _client
         .from('users')
         .select('id')
@@ -52,8 +51,6 @@ class AuthService {
         }
       } catch (e) {
         if (e is AuthException) rethrow;
-        // Jika query users gagal (user belum ada di tabel),
-        // biarkan login tetap berlanjut
       }
     }
   }

@@ -19,6 +19,8 @@ import 'package:inersia_supabase/features/user/bookmark/screens/bookmark_screen.
 import 'package:inersia_supabase/features/user/mainPage/screens/article_read_screen.dart';
 import 'package:inersia_supabase/features/user/mainPage/screens/main_page.dart';
 import 'package:inersia_supabase/features/user/notification/screens/user_notification_screen.dart';
+import 'package:inersia_supabase/features/user/profile/screens/draft_screen.dart';
+import 'package:inersia_supabase/features/user/profile/screens/edit_profile_screen.dart';
 import 'package:inersia_supabase/features/user/profile/screens/profile_screen.dart';
 import 'package:inersia_supabase/features/user/search/screens/search_screen.dart';
 import 'package:inersia_supabase/features/user/search/screens/search_user_profile_screen.dart';
@@ -143,6 +145,16 @@ final routerProvider = Provider<GoRouter>((ref) {
         path: '/bookmark',
         pageBuilder: (context, state) =>
             _buildPage(state: state, child: const BookmarkScreen()),
+      ),
+      GoRoute(
+        path: '/profile/drafts',
+        pageBuilder: (context, state) =>
+            _buildPage(state: state, child: const DraftScreen()),
+      ),
+      GoRoute(
+        path: '/profile/edit',
+        pageBuilder: (context, state) =>
+            _buildPage(state: state, child: const EditProfileScreen()),
       ),
       GoRoute(
         path: '/user/:id',
