@@ -14,6 +14,7 @@ import 'package:inersia_supabase/features/auth/screens/forgot_password_screen.da
 import 'package:inersia_supabase/features/auth/screens/login_screen.dart';
 import 'package:inersia_supabase/features/auth/screens/register_screen.dart';
 import 'package:inersia_supabase/features/auth/screens/reset_password_screen.dart';
+import 'package:inersia_supabase/features/auth/screens/verify_otp_screen.dart';
 import 'package:inersia_supabase/features/user/article/screens/user_article_editor_screen.dart';
 import 'package:inersia_supabase/features/user/bookmark/screens/bookmark_screen.dart';
 import 'package:inersia_supabase/features/user/mainPage/screens/article_read_screen.dart';
@@ -54,6 +55,7 @@ final routerProvider = Provider<GoRouter>((ref) {
           location == '/login' ||
           location == '/register' ||
           location == '/forgot-password' ||
+          location == '/verify-otp' ||
           location == '/reset-password';
 
       if (!isAuthenticated) {
@@ -61,11 +63,18 @@ final routerProvider = Provider<GoRouter>((ref) {
       }
 
       if (isAuthenticated && isAuthRoute) {
+        if (location == '/reset-password') return null;
+
+        final roleAsync = ref.read(userRoleProvider);
+        final userRole = roleAsync.asData?.value;
+
+        if (userRole == null) return null;
         return '/';
       }
 
       final roleAsync = ref.read(userRoleProvider);
       final userRole = roleAsync.asData?.value;
+
       const adminRoutes = [
         '/manageUser',
         '/manageCategoryTag',
@@ -75,9 +84,7 @@ final routerProvider = Provider<GoRouter>((ref) {
         '/admin-notiffications',
       ];
 
-      if (adminRoutes.contains(location) &&
-          userRole != null &&
-          userRole != 'admin') {
+      if (adminRoutes.contains(location) && userRole != 'admin') {
         return '/';
       }
 
@@ -98,6 +105,16 @@ final routerProvider = Provider<GoRouter>((ref) {
         path: '/forgot-password',
         pageBuilder: (context, state) =>
             _buildPage(state: state, child: const ForgotPasswordScreen()),
+      ),
+      GoRoute(
+        path: '/verify-otp',
+        pageBuilder: (context, state) {
+          final email = state.extra as String? ?? '';
+          return _buildPage(
+            state: state,
+            child: VerifyOtpScreen(email: email),
+          );
+        },
       ),
       GoRoute(
         path: '/reset-password',
@@ -235,8 +252,9 @@ final routerProvider = Provider<GoRouter>((ref) {
 });
 
 class RouterNotifier extends ChangeNotifier {
-  RouterNotifier(Ref ref) {
-    ref.listen(authStateProvider, (_, __) => notifyListeners());
-    ref.listen(userRoleProvider, (_, __) => notifyListeners());
+  final Ref _ref;
+  RouterNotifier(this._ref) {
+    _ref.listen(authStateProvider, (_, __) => notifyListeners());
+    _ref.listen(userRoleProvider, (_, __) => notifyListeners());
   }
 }

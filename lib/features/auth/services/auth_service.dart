@@ -17,16 +17,15 @@ class AuthService {
         .maybeSingle();
 
     if (existing != null) {
-      throw const AuthException('Username sudah digunakan. Pilih username lain.');
+      throw const AuthException(
+        'Username sudah digunakan. Pilih username lain.',
+      );
     }
 
     await _client.auth.signUp(
       email: email,
       password: password,
-      data: {
-        'name': name.trim(),
-        'username': username.trim().toLowerCase(),
-      },
+      data: {'name': name.trim(), 'username': username.trim().toLowerCase()},
       emailRedirectTo: 'io.supabase.flutter://login',
     );
   }
@@ -60,9 +59,17 @@ class AuthService {
   }
 
   Future<void> sendPasswordResetEmail(String email) async {
-    await _client.auth.resetPasswordForEmail(
-      email,
-      redirectTo: 'io.supabase.flutter://reset-password',
+    await _client.auth.resetPasswordForEmail(email);
+  }
+
+  Future<void> verifyResetOtp({
+    required String email,
+    required String token,
+  }) async {
+    await _client.auth.verifyOTP(
+      email: email,
+      token: token,
+      type: OtpType.recovery,
     );
   }
 

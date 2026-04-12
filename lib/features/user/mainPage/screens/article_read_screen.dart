@@ -7,6 +7,7 @@ import 'package:inersia_supabase/features/user/mainPage/providers/read_page_prov
 import 'package:inersia_supabase/models/article_model.dart';
 import 'package:inersia_supabase/models/comment_model.dart';
 import 'package:inersia_supabase/utils/dateUtills.dart';
+import 'package:inersia_supabase/utils/moderation_client.dart';
 
 class ArticleReadScreen extends HookConsumerWidget {
   final ArticleModel article;
@@ -16,8 +17,6 @@ class ArticleReadScreen extends HookConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final currentUserId = supabaseConfig.client.auth.currentUser?.id ?? '';
 
-    // Fetch data lengkap dari DB — ini menjamin konten selalu ada
-    // bahkan jika datang dari search (yang hanya punya data parsial)
     final articleAsync = ref.watch(articleDetailProvider(article.id));
 
     final commentController = useTextEditingController();
@@ -182,7 +181,6 @@ class ArticleReadScreen extends HookConsumerWidget {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      // Author Row
                       Row(
                         children: [
                           CircleAvatar(
@@ -248,7 +246,6 @@ class ArticleReadScreen extends HookConsumerWidget {
                       ),
                       const SizedBox(height: 24),
 
-                      // Isi Artikel
                       ...contentParagraphs.map(
                         (para) => Padding(
                           padding: const EdgeInsets.only(bottom: 16),
@@ -265,7 +262,6 @@ class ArticleReadScreen extends HookConsumerWidget {
                       ),
                       const SizedBox(height: 16),
 
-                      // Tags
                       if (fullArticle.tags.isNotEmpty)
                         Wrap(
                           spacing: 8,
@@ -297,7 +293,6 @@ class ArticleReadScreen extends HookConsumerWidget {
                         ),
                       const SizedBox(height: 24),
 
-                      // Stats Bar — realtime
                       statsAsync.when(
                         data: (stats) => Container(
                           padding: const EdgeInsets.symmetric(
@@ -320,8 +315,6 @@ class ArticleReadScreen extends HookConsumerWidget {
                                 label: 'Dilihat',
                               ),
                               _StatDivider(),
-                              // Gunakan jumlah komentar realtime dari stream komentar
-                              // agar sinkron saat admin hapus komentar
                               commentsAsync.when(
                                 data: (comments) => _StatItem(
                                   value: _fmt(comments.length),
@@ -356,7 +349,6 @@ class ArticleReadScreen extends HookConsumerWidget {
                       ),
                       const SizedBox(height: 32),
 
-                      // Komentar Header
                       Row(
                         children: [
                           const Text(
@@ -394,7 +386,6 @@ class ArticleReadScreen extends HookConsumerWidget {
                       ),
                       const SizedBox(height: 16),
 
-                      // Comment Input
                       _CommentInput(
                         controller: commentController,
                         focusNode: commentFocusNode,
@@ -428,7 +419,6 @@ class ArticleReadScreen extends HookConsumerWidget {
                         ),
                       const SizedBox(height: 20),
 
-                      // Comment List — realtime
                       commentsAsync.when(
                         data: (comments) => comments.isEmpty
                             ? const Padding(
@@ -485,7 +475,6 @@ class ArticleReadScreen extends HookConsumerWidget {
             ],
           ),
 
-          // Bottom Bar
           bottomNavigationBar: Container(
             decoration: const BoxDecoration(
               color: Color(0xFF111827),
@@ -598,7 +587,6 @@ class ArticleReadScreen extends HookConsumerWidget {
     );
   }
 
-  // Skeleton loading saat fetch artikel
   Widget _buildLoadingScaffold(ArticleModel article, BuildContext context) {
     return CustomScrollView(
       slivers: [
@@ -753,7 +741,6 @@ class ArticleReadScreen extends HookConsumerWidget {
   );
 }
 
-// ─── Follow Button ─────────────────────────────────────────────
 
 class _FollowButton extends StatelessWidget {
   final bool isFollowing;
@@ -789,7 +776,6 @@ class _FollowButton extends StatelessWidget {
   }
 }
 
-// ─── Stat Widgets ──────────────────────────────────────────────
 
 class _StatItem extends StatelessWidget {
   final String value;
@@ -826,7 +812,6 @@ class _StatDivider extends StatelessWidget {
       Container(width: 1, height: 36, color: const Color(0xFF1F2937));
 }
 
-// ─── Comment Item ──────────────────────────────────────────────
 
 class _CommentItem extends StatelessWidget {
   final CommentModel comment;
@@ -841,6 +826,10 @@ class _CommentItem extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final displayText = ModerationClient.censorCommentSync(
+      comment.commentText,
+    );
+
     return Padding(
       padding: const EdgeInsets.only(bottom: 16),
       child: Row(
@@ -857,8 +846,8 @@ class _CommentItem extends StatelessWidget {
                     comment.userName.isNotEmpty
                         ? comment.userName[0].toUpperCase()
                         : 'U',
-                    style: const TextStyle(color: Colors.white, fontSize: 13),
-                  )
+                    style: const TextStyle(
+                        color: Colors.white, fontSize: 13))
                 : null,
           ),
           const SizedBox(width: 12),
@@ -868,43 +857,33 @@ class _CommentItem extends StatelessWidget {
               children: [
                 Row(
                   children: [
-                    Text(
-                      comment.userName,
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontWeight: FontWeight.w600,
-                        fontSize: 13,
-                      ),
-                    ),
+                    Text(comment.userName,
+                        style: const TextStyle(
+                            color: Colors.white,
+                            fontWeight: FontWeight.w600,
+                            fontSize: 13)),
                     const SizedBox(width: 8),
-                    Text(
-                      AppDateUtils.timeAgo(comment.createdAt),
-                      style: const TextStyle(
-                        color: Color(0xFF6B7280),
-                        fontSize: 11,
-                      ),
-                    ),
+                    Text(AppDateUtils.timeAgo(comment.createdAt),
+                        style: const TextStyle(
+                            color: Color(0xFF6B7280), fontSize: 11)),
                     const Spacer(),
                     if (comment.userId != currentUserId)
                       GestureDetector(
                         onTap: onReport,
-                        child: const Icon(
-                          Icons.more_horiz,
-                          color: Color(0xFF4B5563),
-                          size: 18,
+                        child: const Padding(
+                          padding: EdgeInsets.all(4),
+                          child: Icon(Icons.more_horiz,
+                              color: Color(0xFF4B5563), size: 18),
                         ),
                       ),
                   ],
                 ),
                 const SizedBox(height: 4),
-                Text(
-                  comment.commentText,
-                  style: const TextStyle(
-                    color: Color(0xFFD1D5DB),
-                    fontSize: 14,
-                    height: 1.5,
-                  ),
-                ),
+                Text(displayText,
+                    style: const TextStyle(
+                        color: Color(0xFFD1D5DB),
+                        fontSize: 14,
+                        height: 1.5)),
               ],
             ),
           ),
@@ -913,8 +892,6 @@ class _CommentItem extends StatelessWidget {
     );
   }
 }
-
-// ─── Comment Input ─────────────────────────────────────────────
 
 class _CommentInput extends StatelessWidget {
   final TextEditingController controller;
@@ -999,7 +976,6 @@ class _CommentInput extends StatelessWidget {
   }
 }
 
-// ─── Report Bottom Sheet ───────────────────────────────────────
 
 class _ReportSheet extends HookWidget {
   final String targetId;

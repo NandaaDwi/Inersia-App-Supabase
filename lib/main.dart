@@ -4,13 +4,11 @@ import 'package:flutter_quill/flutter_quill.dart'
     show FlutterQuillLocalizations;
 import 'package:hooks_riverpod/hooks_riverpod.dart';
 import 'package:inersia_supabase/config/supabase_config.dart';
-import 'package:inersia_supabase/utils/word_filter_utils.dart';
 import 'routes/app_router.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  await supabaseConfig.init();
-  await WordFilterUtils.init();
+  await SupabaseConfig.init();
 
   runApp(const ProviderScope(child: MyApp()));
 }

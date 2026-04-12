@@ -43,7 +43,9 @@ class AuthNotifier extends Notifier<AsyncValue<void>> {
     state = const AsyncLoading();
     try {
       await ref.read(authServiceProvider).login(email, password);
-      _invalidateUserProviders();
+      ref.invalidate(userRoleProvider);
+      await ref.read(userRoleProvider.future);
+
       state = const AsyncData(null);
     } catch (e, s) {
       state = AsyncError(e, s);
@@ -87,6 +89,18 @@ class AuthNotifier extends Notifier<AsyncValue<void>> {
     state = const AsyncLoading();
     try {
       await ref.read(authServiceProvider).sendPasswordResetEmail(email);
+      state = const AsyncData(null);
+    } catch (e, s) {
+      state = AsyncError(e, s);
+    }
+  }
+
+  Future<void> verifyOtp(String email, String token) async {
+    state = const AsyncLoading();
+    try {
+      await ref
+          .read(authServiceProvider)
+          .verifyResetOtp(email: email, token: token);
       state = const AsyncData(null);
     } catch (e, s) {
       state = AsyncError(e, s);
