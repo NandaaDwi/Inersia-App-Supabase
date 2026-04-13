@@ -63,7 +63,7 @@ final routerProvider = Provider<GoRouter>((ref) {
       }
 
       if (isAuthenticated && isAuthRoute) {
-        if (location == '/reset-password') return null;
+        if (location == '/reset-password' || location == '/verify-otp') return null;
 
         final roleAsync = ref.read(userRoleProvider);
         final userRole = roleAsync.asData?.value;
@@ -166,7 +166,7 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/profile/drafts',
         pageBuilder: (context, state) =>
-            _buildPage(state: state, child: const DraftScreen()),
+            _buildPage(state: state, child: const MyArticlesScreen()),
       ),
       GoRoute(
         path: '/profile/edit',

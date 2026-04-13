@@ -4,8 +4,7 @@ import 'package:inersia_supabase/models/comment_model.dart';
 
 class ReadPageService {
   final _client = supabaseConfig.client;
-
-  String? get _currentUserId => _client.auth.currentUser?.id;
+  String? get _uid => _client.auth.currentUser?.id;
 
   Future<ArticleModel> getArticleById(String id) async {
     final res = await _client
@@ -19,35 +18,33 @@ class ReadPageService {
         )
         .eq('id', id)
         .single();
-
-    _incrementViewCount(id, res['view_count'] as int? ?? 0);
     return ArticleModel.fromJson(res);
   }
 
-  void _incrementViewCount(String articleId, int current) {
-    _client
-        .from('articles')
-        .update({'view_count': current + 1})
-        .eq('id', articleId)
-        .then((_) {})
-        .catchError((_) {});
-  }
-
-  Future<Map<String, int>> getArticleStats(String articleId) async {
-    final res = await _client
-        .from('articles')
-        .select('like_count,view_count,comment_count')
-        .eq('id', articleId)
-        .single();
-    return {
-      'like_count': res['like_count'] as int? ?? 0,
-      'view_count': res['view_count'] as int? ?? 0,
-      'comment_count': res['comment_count'] as int? ?? 0,
-    };
+  Future<void> incrementViewCount(String articleId) async {
+    try {
+      await _client.rpc(
+        'increment_view_count',
+        params: {'article_id': articleId},
+      );
+    } catch (_) {
+      try {
+        final r = await _client
+            .from('articles')
+            .select('view_count')
+            .eq('id', articleId)
+            .single();
+        final current = r['view_count'] as int? ?? 0;
+        await _client
+            .from('articles')
+            .update({'view_count': current + 1})
+            .eq('id', articleId);
+      } catch (_) {}
+    }
   }
 
   Future<bool> isLiked(String articleId) async {
-    final uid = _currentUserId;
+    final uid = _uid;
     if (uid == null) return false;
     final res = await _client
         .from('likes')
@@ -58,11 +55,11 @@ class ReadPageService {
     return res != null;
   }
 
-  Future<({bool isLiked, int count})> toggleLike(
+  Future<({bool isLiked})> toggleLike(
     String articleId,
     bool currentlyLiked,
   ) async {
-    final uid = _currentUserId!;
+    final uid = _uid!;
 
     if (currentlyLiked) {
       await _client
@@ -77,26 +74,23 @@ class ReadPageService {
       });
     }
 
-    final countRes = await _client
-        .from('articles')
-        .select('like_count')
-        .eq('id', articleId)
-        .single();
-    final current = countRes['like_count'] as int? ?? 0;
-    final newCount = currentlyLiked
-        ? (current - 1).clamp(0, 999999)
-        : current + 1;
+    try {
+      final countRes = await _client
+          .from('likes')
+          .select('user_id')
+          .eq('article_id', articleId)
+          .count();
+      await _client
+          .from('articles')
+          .update({'like_count': countRes.count})
+          .eq('id', articleId);
+    } catch (_) {}
 
-    await _client
-        .from('articles')
-        .update({'like_count': newCount})
-        .eq('id', articleId);
-
-    return (isLiked: !currentlyLiked, count: newCount);
+    return (isLiked: !currentlyLiked);
   }
 
   Future<bool> isBookmarked(String articleId) async {
-    final uid = _currentUserId;
+    final uid = _uid;
     if (uid == null) return false;
     final res = await _client
         .from('reading_list')
@@ -111,7 +105,7 @@ class ReadPageService {
     String articleId,
     bool currentlyBookmarked,
   ) async {
-    final uid = _currentUserId!;
+    final uid = _uid!;
     if (currentlyBookmarked) {
       await _client
           .from('reading_list')
@@ -133,7 +127,7 @@ class ReadPageService {
         .select('*,users:user_id(name,photo_url)')
         .eq('article_id', articleId)
         .isFilter('parent_id', null)
-        .order('created_at', ascending: true);
+        .order('created_at', ascending: false);
     return (res as List).map((e) => CommentModel.fromJson(e)).toList();
   }
 
@@ -142,8 +136,7 @@ class ReadPageService {
     required String commentText,
     String? parentId,
   }) async {
-    final uid = _currentUserId!;
-
+    final uid = _uid!;
     final res = await _client
         .from('comments')
         .insert({
@@ -155,22 +148,28 @@ class ReadPageService {
         .select('*,users:user_id(name,photo_url)')
         .single();
 
-    final countRes = await _client
-        .from('articles')
-        .select('comment_count')
-        .eq('id', articleId)
-        .single();
-    final current = countRes['comment_count'] as int? ?? 0;
-    await _client
-        .from('articles')
-        .update({'comment_count': current + 1})
-        .eq('id', articleId);
+    _syncCommentCount(articleId);
 
     return CommentModel.fromJson(res);
   }
 
+  Future<void> _syncCommentCount(String articleId) async {
+    try {
+      final res = await _client
+          .from('comments')
+          .select('id')
+          .eq('article_id', articleId)
+          .isFilter('parent_id', null)
+          .count();
+      await _client
+          .from('articles')
+          .update({'comment_count': res.count})
+          .eq('id', articleId);
+    } catch (_) {}
+  }
+
   Future<bool> isFollowing(String targetUserId) async {
-    final uid = _currentUserId;
+    final uid = _uid;
     if (uid == null || uid == targetUserId) return false;
     final res = await _client
         .from('social')
@@ -185,7 +184,7 @@ class ReadPageService {
     String targetUserId,
     bool currentlyFollowing,
   ) async {
-    final uid = _currentUserId!;
+    final uid = _uid!;
     if (uid == targetUserId) return currentlyFollowing;
 
     if (currentlyFollowing) {
@@ -195,36 +194,8 @@ class ReadPageService {
           .eq('follower_id', uid)
           .eq('following_id', targetUserId);
 
-      final tr = await _client
-          .from('users')
-          .select('followers_count')
-          .eq('id', targetUserId)
-          .single();
-      await _client
-          .from('users')
-          .update({
-            'followers_count': ((tr['followers_count'] as int? ?? 1) - 1).clamp(
-              0,
-              999999,
-            ),
-          })
-          .eq('id', targetUserId);
-
-      final sr = await _client
-          .from('users')
-          .select('following_count')
-          .eq('id', uid)
-          .single();
-      await _client
-          .from('users')
-          .update({
-            'following_count': ((sr['following_count'] as int? ?? 1) - 1).clamp(
-              0,
-              999999,
-            ),
-          })
-          .eq('id', uid);
-
+      _updateCount(targetUserId, 'followers_count', -1);
+      _updateCount(uid, 'following_count', -1);
       return false;
     } else {
       await _client.from('social').insert({
@@ -233,25 +204,8 @@ class ReadPageService {
         'created_at': DateTime.now().toIso8601String(),
       });
 
-      final tr = await _client
-          .from('users')
-          .select('followers_count')
-          .eq('id', targetUserId)
-          .single();
-      await _client
-          .from('users')
-          .update({'followers_count': (tr['followers_count'] as int? ?? 0) + 1})
-          .eq('id', targetUserId);
-
-      final sr = await _client
-          .from('users')
-          .select('following_count')
-          .eq('id', uid)
-          .single();
-      await _client
-          .from('users')
-          .update({'following_count': (sr['following_count'] as int? ?? 0) + 1})
-          .eq('id', uid);
+      _updateCount(targetUserId, 'followers_count', 1);
+      _updateCount(uid, 'following_count', 1);
 
       _client
           .from('notifications')
@@ -260,12 +214,28 @@ class ReadPageService {
             'sender_id': uid,
             'type': 'follow',
             'is_read': false,
+            'message': 'mulai mengikuti kamu',
           })
           .then((_) {})
           .catchError((_) {});
 
       return true;
     }
+  }
+
+  Future<void> _updateCount(String userId, String field, int delta) async {
+    try {
+      final res = await _client
+          .from('users')
+          .select(field)
+          .eq('id', userId)
+          .single();
+      final current = res[field] as int? ?? 0;
+      await _client
+          .from('users')
+          .update({field: (current + delta).clamp(0, 999999)})
+          .eq('id', userId);
+    } catch (_) {}
   }
 
   Future<void> submitReport({
@@ -275,7 +245,7 @@ class ReadPageService {
     String? description,
     Map<String, dynamic>? contentSnapshot,
   }) async {
-    final uid = _currentUserId!;
+    final uid = _uid!;
 
     final existing = await _client
         .from('reports')

@@ -18,7 +18,7 @@ class VerifyOtpScreen extends HookConsumerWidget {
       next.whenOrNull(
         data: (_) {
           if (prev is AsyncLoading) {
-            context.push('/reset-password');
+            context.go('/reset-password');
           }
         },
         error: (e, _) => ScaffoldMessenger.of(context).showSnackBar(

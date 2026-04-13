@@ -12,33 +12,34 @@ class ResetPasswordScreen extends HookConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final passwordController = useTextEditingController();
     final confirmController = useTextEditingController();
+
+    final obscurePassword = useState(true);
+    final obscureConfirm = useState(true);
+
     final state = ref.watch(authProvider);
 
     ref.listen(authProvider, (prev, next) {
-      next.whenOrNull(
-        data: (_) {
-          if (prev is AsyncLoading) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
-                content: Text(
-                  "Kata sandi berhasil diperbarui! Silakan masuk kembali.",
-                ),
-                backgroundColor: Colors.green,
-              ),
-            );
-            ref
-                .read(authProvider.notifier)
-                .logout()
-                .then((_) => context.go('/login'));
-          }
-        },
-        error: (e, _) => ScaffoldMessenger.of(context).showSnackBar(
+      if (prev is AsyncLoading && next is AsyncData && next.value != null) {
+        ScaffoldMessenger.of(context).clearSnackBars();
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+              "Kata sandi berhasil diperbarui! Silakan masuk kembali.",
+            ),
+            backgroundColor: Colors.green,
+          ),
+        );
+        ref.read(authProvider.notifier).logout().then((_) {
+          if (context.mounted) context.go('/login');
+        });
+      } else if (next is AsyncError) {
+        ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(AuthErrorHandler.mapError(e)),
+            content: Text(AuthErrorHandler.mapError(next.error)),
             backgroundColor: Colors.redAccent,
           ),
-        ),
-      );
+        );
+      }
     });
 
     return Scaffold(
@@ -65,15 +66,19 @@ class ResetPasswordScreen extends HookConsumerWidget {
               ),
               const SizedBox(height: 40),
               _buildField(
-                passwordController,
-                "Kata Sandi Baru",
-                Icons.lock_outline,
+                controller: passwordController,
+                hint: "Kata Sandi Baru",
+                icon: Icons.lock_outline,
+                isObscure: obscurePassword.value,
+                onToggle: () => obscurePassword.value = !obscurePassword.value,
               ),
               const SizedBox(height: 16),
               _buildField(
-                confirmController,
-                "Konfirmasi Kata Sandi",
-                Icons.lock_reset,
+                controller: confirmController,
+                hint: "Konfirmasi Kata Sandi",
+                icon: Icons.lock_reset,
+                isObscure: obscureConfirm.value,
+                onToggle: () => obscureConfirm.value = !obscureConfirm.value,
               ),
               const SizedBox(height: 32),
               SizedBox(
@@ -83,6 +88,7 @@ class ResetPasswordScreen extends HookConsumerWidget {
                   onPressed: state is AsyncLoading
                       ? null
                       : () {
+                          if (passwordController.text.isEmpty) return;
                           if (passwordController.text !=
                               confirmController.text) {
                             ScaffoldMessenger.of(context).showSnackBar(
@@ -103,7 +109,14 @@ class ResetPasswordScreen extends HookConsumerWidget {
                     ),
                   ),
                   child: state is AsyncLoading
-                      ? const CircularProgressIndicator(color: Colors.white)
+                      ? const SizedBox(
+                          height: 20,
+                          width: 20,
+                          child: CircularProgressIndicator(
+                            color: Colors.white,
+                            strokeWidth: 2,
+                          ),
+                        )
                       : const Text(
                           "Perbarui Kata Sandi",
                           style: TextStyle(
@@ -120,19 +133,28 @@ class ResetPasswordScreen extends HookConsumerWidget {
     );
   }
 
-  Widget _buildField(
-    TextEditingController controller,
-    String hint,
-    IconData icon,
-  ) {
+  Widget _buildField({
+    required TextEditingController controller,
+    required String hint,
+    required IconData icon,
+    required bool isObscure,
+    required VoidCallback onToggle,
+  }) {
     return TextField(
       controller: controller,
-      obscureText: true,
+      obscureText: isObscure,
       style: const TextStyle(color: Colors.white),
       decoration: InputDecoration(
         filled: true,
         fillColor: const Color(0xFF1E1E1E),
         prefixIcon: Icon(icon, color: Colors.white54),
+        suffixIcon: IconButton(
+          icon: Icon(
+            isObscure ? Icons.visibility_off : Icons.visibility,
+            color: Colors.white54,
+          ),
+          onPressed: onToggle,
+        ),
         hintText: hint,
         hintStyle: const TextStyle(color: Colors.white38),
         border: OutlineInputBorder(

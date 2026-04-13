@@ -1,10 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
-import 'package:inersia_supabase/config/supabase_config.dart';
 import 'package:inersia_supabase/features/user/mainPage/widgets/app_bottom_bar.dart';
 import 'package:inersia_supabase/features/user/profile/providers/profile_provider.dart';
-import 'package:inersia_supabase/features/user/profile/services/profile_service.dart';
 import 'package:inersia_supabase/models/user_model.dart';
 import 'package:inersia_supabase/utils/nav_utils.dart';
 
@@ -43,11 +41,9 @@ class ProfilePage extends ConsumerWidget {
             padding: const EdgeInsets.fromLTRB(16, 8, 16, 32),
             child: Column(
               children: [
-                // ─── Info Profil ───────────────────────────────
                 _ProfileHeader(user: data.user),
                 const SizedBox(height: 20),
 
-                // ─── Stats Row ─────────────────────────────────
                 _StatsRow(
                   publishedCount: data.publishedCount,
                   draftCount: data.draftCount,
@@ -56,11 +52,9 @@ class ProfilePage extends ConsumerWidget {
                 ),
                 const SizedBox(height: 28),
 
-                // ─── Menu Navigasi ─────────────────────────────
                 _MenuSection(draftCount: data.draftCount),
                 const SizedBox(height: 20),
 
-                // ─── Tombol Logout ─────────────────────────────
                 _LogoutButton(),
               ],
             ),
@@ -103,8 +97,6 @@ class ProfilePage extends ConsumerWidget {
   }
 }
 
-// ─── Profile Header ───────────────────────────────────────────
-
 class _ProfileHeader extends StatelessWidget {
   final UserModel user;
   const _ProfileHeader({required this.user});
@@ -121,7 +113,6 @@ class _ProfileHeader extends StatelessWidget {
       ),
       child: Column(
         children: [
-          // Avatar
           Stack(
             children: [
               CircleAvatar(
@@ -141,7 +132,6 @@ class _ProfileHeader extends StatelessWidget {
                       )
                     : null,
               ),
-              // Badge edit kecil
               Positioned(
                 right: 0,
                 bottom: 0,
@@ -170,7 +160,6 @@ class _ProfileHeader extends StatelessWidget {
           ),
           const SizedBox(height: 14),
 
-          // Nama
           Text(
             user.name,
             style: const TextStyle(
@@ -181,13 +170,11 @@ class _ProfileHeader extends StatelessWidget {
           ),
           const SizedBox(height: 4),
 
-          // Username
           Text(
             '@${user.username}',
             style: const TextStyle(color: Color(0xFF6B7280), fontSize: 14),
           ),
 
-          // Bio
           if (user.bio != null && user.bio!.isNotEmpty) ...[
             const SizedBox(height: 12),
             Text(
@@ -207,8 +194,6 @@ class _ProfileHeader extends StatelessWidget {
     );
   }
 }
-
-// ─── Stats Row ────────────────────────────────────────────────
 
 class _StatsRow extends StatelessWidget {
   final int publishedCount;
@@ -287,8 +272,6 @@ class _Divider extends StatelessWidget {
   Widget build(BuildContext context) =>
       Container(width: 1, height: 32, color: const Color(0xFF1F2937));
 }
-
-// ─── Menu Section ─────────────────────────────────────────────
 
 class _MenuSection extends StatelessWidget {
   final int draftCount;
@@ -425,8 +408,6 @@ class _MenuItem extends StatelessWidget {
     );
   }
 }
-
-// ─── Logout Button ────────────────────────────────────────────
 
 class _LogoutButton extends ConsumerWidget {
   @override

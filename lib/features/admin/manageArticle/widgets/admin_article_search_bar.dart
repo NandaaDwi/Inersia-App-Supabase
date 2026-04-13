@@ -8,21 +8,33 @@ class AdminArticleSearchBar extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
       child: TextField(
         onChanged: (v) => ref.read(articleSearchProvider.notifier).state = v,
-        style: const TextStyle(color: Colors.white),
+        style: const TextStyle(color: Colors.white, fontSize: 14),
         decoration: InputDecoration(
-          hintText: "Cari artikel...",
-          hintStyle: const TextStyle(color: Color(0xFF6B7280)),
-          prefixIcon: const Icon(Icons.search, color: Color(0xFF6B7280)),
+          hintText: 'Cari artikel...',
+          hintStyle: const TextStyle(color: Color(0xFF4B5563)),
+          prefixIcon: const Icon(
+            Icons.search_rounded,
+            color: Color(0xFF6B7280),
+            size: 20,
+          ),
           filled: true,
           fillColor: const Color(0xFF161616),
-          contentPadding: const EdgeInsets.symmetric(vertical: 14),
           border: OutlineInputBorder(
             borderRadius: BorderRadius.circular(12),
-            borderSide: BorderSide.none,
+            borderSide: const BorderSide(color: Color(0xFF1F2937)),
           ),
+          enabledBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(12),
+            borderSide: const BorderSide(color: Color(0xFF1F2937)),
+          ),
+          focusedBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(12),
+            borderSide: const BorderSide(color: Color(0xFF2563EB), width: 1.5),
+          ),
+          contentPadding: const EdgeInsets.symmetric(vertical: 13),
         ),
       ),
     );

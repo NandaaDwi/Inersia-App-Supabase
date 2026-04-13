@@ -55,18 +55,21 @@ class UserDetailScreen extends HookConsumerWidget {
                     label: "Nama Lengkap",
                     controller: nameController,
                     icon: Icons.person_outline,
+                    enabled: false,
                   ),
                   const SizedBox(height: 16),
                   UserTextField(
                     label: "Username",
                     controller: usernameController,
                     icon: Icons.alternate_email,
+                    enabled: false,
                   ),
                   const SizedBox(height: 16),
                   UserTextField(
                     label: "Email",
                     controller: emailController,
                     icon: Icons.email,
+                    enabled: false,
                   ),
                   const SizedBox(height: 16),
                   UserTextField(
@@ -74,6 +77,7 @@ class UserDetailScreen extends HookConsumerWidget {
                     controller: bioController,
                     icon: Icons.notes,
                     maxLines: 3,
+                    enabled: false,
                   ),
                   const SizedBox(height: 24),
 
@@ -97,7 +101,7 @@ class UserDetailScreen extends HookConsumerWidget {
                   UserDropdownField(
                     label: "Status Akun",
                     state: selectedStatus,
-                    items: const ['active', 'banned'],
+                    items: const ['active', 'inactive', 'banned'],
                     icon: Icons.gpp_maybe_outlined,
                   ),
 

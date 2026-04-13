@@ -16,7 +16,7 @@ class AdminUserService {
         .from('users')
         .select(
           'id, name, username, email, bio, role, status, photo_url, followers_count, following_count',
-        );
+        ).eq('role', 'user');
 
     if (query.isNotEmpty) {
       request = request.or(

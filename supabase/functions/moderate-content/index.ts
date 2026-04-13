@@ -1,211 +1,146 @@
+
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 
-const LOCAL_BLACKLIST: string[] = [
-  "anjing", "anjir", "anjrit",
-  "bangsat", "bgs",
-  "bajingan", "bajg",
-  "brengsek",
-  "keparat",
-  "kontol", "kntl", "k0ntol",
-  "memek", "mmk",
-  "ngentot", "ngnt", "entot",
-  "tolol", "tlol",
-  "goblok", "gblk",
-  "bodoh",
-  "babi",
-  "sial",
-  "kampret",
-  "bedebah",
-  "asu", "asw",
-  "jancok", "jancuk", "cok", "cuk",
-  "jangkrik",
-  "sialan",
-  "tai", "t4i",
-  "monyet",
-  "bego",
-  "dungu",
-  "brengsek",
-  "celeng",
-  "bajingan",
-  "fuck", "f*ck", "fck", "f.u.c.k",
-  "shit", "sh1t",
-  "ass", "a55",
-  "bitch", "b1tch",
-  "damn",
-  "cunt",
-  "bastard",
-  "idiot",
-  "stupid",
-  "retard",
-  "dick",
-  "pussy",
-  "cock",
-  "nigger", "nigga",
-  "whore",
-  "slut",
+// ── Cors headers ─────────────────────────────────────────────
+const corsHeaders = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Methods": "POST, OPTIONS",
+  "Access-Control-Allow-Headers": "Content-Type, Authorization, apikey",
+};
+
+function json(body: unknown, status = 200) {
+  return new Response(JSON.stringify(body), {
+    status,
+    headers: { ...corsHeaders, "Content-Type": "application/json" },
+  });
+}
+
+const ID_BLACKLIST = [
+  "anjing","anjir","anjrit","anjer",
+  "bangsat","bajingan","brengsek","keparat",
+  "ngentot","entot","memek","kontol",
+  "tolol","goblok","kampret","bedebah",
+  "jancok","jancuk","sialan","monyet",
+  "bego","dungu","celeng","asu","tai",
+  "kntl","mmk","ngnt","bgs","bajg",
 ];
 
-function sanitizeText(text: string): string {
+const EN_BLACKLIST = [
+  "fuck","shit","bitch","cunt","bastard",
+  "asshole","motherfucker","nigger","nigga",
+  "whore","slut","retard","pussy","cock","dick",
+];
+
+function sanitize(text: string): string {
   return text
     .toLowerCase()
-    .replace(/([a-z0-9])[.\-_*](?=[a-z0-9])/g, "$1")
-    .replace(/\s+/g, " ")
-    .replace(/3/g, "e")
-    .replace(/4/g, "a")
-    .replace(/0/g, "o")
-    .replace(/1/g, "i")
-    .trim();
+    .replace(/([a-z0-9])[.\-_*+|](?=[a-z0-9])/g, "$1")
+    .replace(/4/g,"a").replace(/3/g,"e").replace(/1/g,"i")
+    .replace(/0/g,"o").replace(/5/g,"s").replace(/@/g,"a")
+    .replace(/(.)\1{2,}/g, (_, c) => c.repeat(2))
+    .replace(/\s+/g, " ").trim();
 }
 
-function localCheck(text: string): string[] {
-  const lowerText = text.toLowerCase();
-  const sanitized = sanitizeText(text);
-  const found: string[] = [];
-  for (const word of LOCAL_BLACKLIST) {
-    const pattern = new RegExp(`(?<![a-zA-Z])${word}(?![a-zA-Z])`, "i");
-    if (pattern.test(lowerText) || pattern.test(sanitized)) {
-      found.push(word);
-    }
+function localCheck(text: string): string | null {
+  const lower = text.toLowerCase();
+  const norm  = sanitize(text);
+
+  for (const w of ID_BLACKLIST) {
+    if (lower.includes(w) || norm.includes(w)) return w;
   }
-  return found;
-}
 
-async function openAICheck(
-  text: string,
-  apiKey: string
-): Promise<{ flagged: boolean; categories: string[] }> {
-  try {
-    const res = await fetch("https://api.openai.com/v1/moderations", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${apiKey}`,
-      },
-      body: JSON.stringify({ input: text }),
-      signal: AbortSignal.timeout(8000), 
-    });
-
-    if (!res.ok) {
-      return { flagged: false, categories: [] };
-    }
-
-    const data = await res.json();
-    const result = data.results?.[0];
-    if (!result) return { flagged: false, categories: [] };
-
-    const flaggedCats = Object.entries(result.categories || {})
-      .filter(([, v]) => v === true)
-      .map(([k]) => translateCategory(k));
-
-    return { flagged: result.flagged === true, categories: flaggedCats };
-  } catch {
-    return { flagged: false, categories: [] };
+  for (const w of EN_BLACKLIST) {
+    const re = new RegExp(`(?<![a-z])${w}(?![a-z])`, "i");
+    if (re.test(lower) || re.test(norm)) return w;
   }
+
+  return null;
 }
 
-function translateCategory(key: string): string {
-  const map: Record<string, string> = {
-    "hate": "ujaran kebencian",
-    "hate/threatening": "ancaman kebencian",
-    "harassment": "pelecehan",
-    "harassment/threatening": "ancaman pelecehan",
-    "self-harm": "menyakiti diri",
-    "self-harm/intent": "niat menyakiti diri",
-    "self-harm/instructions": "instruksi berbahaya",
-    "sexual": "konten seksual",
-    "sexual/minors": "konten seksual anak",
-    "violence": "kekerasan",
-    "violence/graphic": "kekerasan grafis",
-  };
-  return map[key] ?? key;
+async function openaiCheck(text: string, apiKey: string) {
+  const res = await fetch("https://api.openai.com/v1/moderations", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${apiKey}`,
+    },
+    body: JSON.stringify({ input: text }),
+    signal: AbortSignal.timeout(8000),
+  });
+
+  if (!res.ok) return { flagged: false, categories: [] as string[] };
+
+  const data = await res.json();
+  const result = data.results?.[0];
+  if (!result) return { flagged: false, categories: [] as string[] };
+
+  const flaggedCats = Object.entries(result.categories as Record<string,boolean>)
+    .filter(([, v]) => v)
+    .map(([k]) => k);
+
+  return { flagged: result.flagged as boolean, categories: flaggedCats };
 }
 
+function censor(text: string): string {
+  let r = text;
+  for (const w of ID_BLACKLIST) {
+    r = r.replace(new RegExp(w, "gi"), m => "*".repeat(m.length));
+  }
+  for (const w of EN_BLACKLIST) {
+    r = r.replace(
+      new RegExp(`(?<![a-zA-Z])${w}(?![a-zA-Z])`, "gi"),
+      m => "*".repeat(m.length),
+    );
+  }
+  return r;
+}
 
 serve(async (req) => {
   if (req.method === "OPTIONS") {
-    return new Response(null, {
-      headers: {
-        "Access-Control-Allow-Origin": "*",
-        "Access-Control-Allow-Methods": "POST",
-        "Access-Control-Allow-Headers": "Content-Type, Authorization",
-      },
-    });
+    return new Response(null, { headers: corsHeaders });
   }
-
   if (req.method !== "POST") {
-    return new Response(
-      JSON.stringify({ error: "Method not allowed" }),
-      { status: 405, headers: { "Content-Type": "application/json" } }
-    );
+    return json({ error: "Method not allowed" }, 405);
   }
 
+  let body: { text?: string; mode?: string };
   try {
-    const { text, mode } = await req.json();
+    body = await req.json();
+  } catch {
+    return json({ error: "Invalid JSON" }, 400);
+  }
 
-    if (!text || typeof text !== "string") {
-      return new Response(
-        JSON.stringify({ error: "Field 'text' wajib diisi" }),
-        { status: 400, headers: { "Content-Type": "application/json" } }
-      );
+  const { text, mode } = body;
+  if (!text || typeof text !== "string" || text.trim().length === 0) {
+    return json({ error: "Field 'text' wajib diisi" }, 400);
+  }
+
+  const isArticle = mode === "article";
+
+  const bad = localCheck(text);
+  if (bad) {
+    if (isArticle) {
+      return json({ allowed: false, reason: "Konten mengandung kata tidak pantas.", layer: "local" });
     }
+    return json({ allowed: true, censoredText: censor(text) });
+  }
 
-    const isArticleMode = mode === "article";
-
-    const localFound = localCheck(text);
-    if (localFound.length > 0 && isArticleMode) {
-      return new Response(
-        JSON.stringify({
-          allowed: false,
-          reason: `Konten mengandung kata tidak pantas: ${localFound.slice(0, 3).join(", ")}`,
-          layer: "local",
-        }),
-        { status: 200, headers: { "Content-Type": "application/json" } }
-      );
-    }
-
+  if (isArticle) {
     const apiKey = Deno.env.get("OPENAI_API_KEY") ?? "";
-    if (apiKey && isArticleMode) {
-      const aiResult = await openAICheck(text, apiKey);
-      if (aiResult.flagged) {
-        return new Response(
-          JSON.stringify({
+    if (apiKey) {
+      try {
+        const { flagged, categories } = await openaiCheck(text, apiKey);
+        if (flagged) {
+          return json({
             allowed: false,
-            reason: `Konten tidak dapat dipublikasi: ${aiResult.categories.join(", ")}`,
+            reason: `Konten melanggar: ${categories.join(", ")}`,
             layer: "openai",
-          }),
-          { status: 200, headers: { "Content-Type": "application/json" } }
-        );
+          });
+        }
+      } catch {
       }
     }
-
-    let censoredText = text;
-    if (!isArticleMode && localFound.length > 0) {
-      censoredText = applyCensor(text, localFound);
-    }
-
-    return new Response(
-      JSON.stringify({
-        allowed: true,
-        censoredText: isArticleMode ? null : censoredText,
-      }),
-      { status: 200, headers: { "Content-Type": "application/json" } }
-    );
-  } catch (e) {
-    return new Response(
-      JSON.stringify({ error: `Internal error: ${e}` }),
-      { status: 500, headers: { "Content-Type": "application/json" } }
-    );
   }
+
+  return json({ allowed: true, censoredText: isArticle ? null : text });
 });
-
-function applyCensor(text: string, LOCAL_BLACKLIST: string[]): string {
-  let result = text;
-  for (const word of LOCAL_BLACKLIST) {
-    const pattern = new RegExp(
-      `(?<![a-zA-Z])${word}(?![a-zA-Z])`,
-      "gi"
-    );
-    result = result.replace(pattern, (m) => "*".repeat(m.length));
-  }
-  return result;
-}

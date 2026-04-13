@@ -5,6 +5,7 @@ class UserTextField extends StatelessWidget {
   final TextEditingController controller;
   final IconData icon;
   final int maxLines;
+  final bool enabled;
 
   const UserTextField({
     super.key,
@@ -12,19 +13,21 @@ class UserTextField extends StatelessWidget {
     required this.controller,
     required this.icon,
     this.maxLines = 1,
+    this.enabled = true,
   });
 
   @override
   Widget build(BuildContext context) {
     return Container(
       decoration: BoxDecoration(
-        color: const Color(0xFF1E1E1E),
+        color: enabled ? const Color(0xFF1E1E1E) : const Color(0xFF2C2C2C),
         borderRadius: BorderRadius.circular(15),
       ),
       child: TextField(
         controller: controller,
         maxLines: maxLines,
-        style: const TextStyle(color: Colors.white),
+        enabled: enabled,
+        style: TextStyle(color: enabled ? Colors.white : Colors.white38),
         decoration: InputDecoration(
           prefixIcon: Icon(icon, color: Colors.white54),
           labelText: label,

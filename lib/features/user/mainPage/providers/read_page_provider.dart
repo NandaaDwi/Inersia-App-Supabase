@@ -9,18 +9,28 @@ final readPageServiceProvider = Provider<ReadPageService>(
   (_) => ReadPageService(),
 );
 
+final _viewedProvider = StateProvider<Set<String>>((_) => const {});
+
 final articleDetailProvider = FutureProvider.family<ArticleModel, String>((
   ref,
   id,
-) {
-  return ref.read(readPageServiceProvider).getArticleById(id);
+) async {
+  final svc = ref.read(readPageServiceProvider);
+  final article = await svc.getArticleById(id);
+
+  final viewed = ref.read(_viewedProvider);
+  if (!viewed.contains(id)) {
+    svc.incrementViewCount(id);
+    ref.read(_viewedProvider.notifier).update((s) => {...s, id});
+  }
+
+  return article;
 });
 
 class ArticleStats {
   final int likeCount;
   final int viewCount;
   final int commentCount;
-
   const ArticleStats({
     required this.likeCount,
     required this.viewCount,
@@ -44,11 +54,11 @@ final articleStatsStreamProvider = StreamProvider.family<ArticleStats, String>((
             commentCount: 0,
           );
         }
-        final row = rows.first;
+        final r = rows.first;
         return ArticleStats(
-          likeCount: row['like_count'] as int? ?? 0,
-          viewCount: row['view_count'] as int? ?? 0,
-          commentCount: row['comment_count'] as int? ?? 0,
+          likeCount: r['like_count'] as int? ?? 0,
+          viewCount: r['view_count'] as int? ?? 0,
+          commentCount: r['comment_count'] as int? ?? 0,
         );
       });
 });
@@ -59,17 +69,16 @@ class LikeState {
 }
 
 class LikeNotifier extends StateNotifier<AsyncValue<LikeState>> {
-  final ReadPageService _service;
+  final ReadPageService _svc;
   final String _articleId;
 
-  LikeNotifier(this._service, this._articleId)
-    : super(const AsyncValue.loading()) {
+  LikeNotifier(this._svc, this._articleId) : super(const AsyncValue.loading()) {
     _load();
   }
 
   Future<void> _load() async {
     try {
-      final liked = await _service.isLiked(_articleId);
+      final liked = await _svc.isLiked(_articleId);
       state = AsyncValue.data(LikeState(isLiked: liked));
     } catch (e, s) {
       state = AsyncValue.error(e, s);
@@ -81,8 +90,9 @@ class LikeNotifier extends StateNotifier<AsyncValue<LikeState>> {
     if (current == null) return;
 
     state = AsyncValue.data(LikeState(isLiked: !current.isLiked));
+
     try {
-      final result = await _service.toggleLike(_articleId, current.isLiked);
+      final result = await _svc.toggleLike(_articleId, current.isLiked);
       state = AsyncValue.data(LikeState(isLiked: result.isLiked));
     } catch (_) {
       state = AsyncValue.data(current);
@@ -98,18 +108,17 @@ final likeProvider =
     >((ref, args) => LikeNotifier(ref.read(readPageServiceProvider), args.$1));
 
 class BookmarkNotifier extends StateNotifier<AsyncValue<bool>> {
-  final ReadPageService _service;
+  final ReadPageService _svc;
   final String _articleId;
 
-  BookmarkNotifier(this._service, this._articleId)
+  BookmarkNotifier(this._svc, this._articleId)
     : super(const AsyncValue.loading()) {
     _load();
   }
 
   Future<void> _load() async {
     try {
-      final saved = await _service.isBookmarked(_articleId);
-      state = AsyncValue.data(saved);
+      state = AsyncValue.data(await _svc.isBookmarked(_articleId));
     } catch (e, s) {
       state = AsyncValue.error(e, s);
     }
@@ -118,10 +127,9 @@ class BookmarkNotifier extends StateNotifier<AsyncValue<bool>> {
   Future<void> toggle() async {
     final current = state.asData?.value;
     if (current == null) return;
-
     state = AsyncValue.data(!current);
     try {
-      await _service.toggleBookmark(_articleId, current);
+      await _svc.toggleBookmark(_articleId, current);
     } catch (_) {
       state = AsyncValue.data(current);
     }
@@ -146,10 +154,11 @@ final commentsRealtimeProvider =
           .from('comments')
           .stream(primaryKey: ['id'])
           .eq('article_id', articleId)
-          .order('created_at', ascending: true);
+          .order('created_at', ascending: false);
 
       await for (final rows in rawStream) {
         final filtered = rows.where((r) => r['parent_id'] == null).toList();
+
         if (filtered.isEmpty) {
           yield [];
           continue;
@@ -171,21 +180,24 @@ final commentsRealtimeProvider =
               u['id'] as String: u as Map<String, dynamic>,
           };
 
-          yield filtered.map((r) {
-            final userData = userMap[r['user_id'] as String];
+          final comments = filtered.map((r) {
+            final u = userMap[r['user_id'] as String];
             return CommentModel(
               id: r['id'] as String,
               articleId: r['article_id'] as String,
               userId: r['user_id'] as String,
-              userName: userData?['name'] as String? ?? 'Pengguna',
-              userPhoto: userData?['photo_url'] as String?,
+              userName: u?['name'] as String? ?? 'Pengguna',
+              userPhoto: u?['photo_url'] as String?,
               parentId: r['parent_id'] as String?,
               commentText: r['comment_text'] as String? ?? '',
               createdAt: DateTime.parse(r['created_at'] as String),
             );
           }).toList();
+
+          comments.sort((a, b) => b.createdAt.compareTo(a.createdAt));
+          yield comments;
         } catch (_) {
-          yield filtered
+          final comments = filtered
               .map(
                 (r) => CommentModel(
                   id: r['id'] as String,
@@ -198,14 +210,15 @@ final commentsRealtimeProvider =
                 ),
               )
               .toList();
+          comments.sort((a, b) => b.createdAt.compareTo(a.createdAt));
+          yield comments;
         }
       }
     });
 
 class CommentWriteNotifier extends StateNotifier<AsyncValue<void>> {
-  final ReadPageService _service;
-
-  CommentWriteNotifier(this._service) : super(const AsyncValue.data(null));
+  final ReadPageService _svc;
+  CommentWriteNotifier(this._svc) : super(const AsyncValue.data(null));
 
   Future<void> addComment({
     required String articleId,
@@ -215,7 +228,7 @@ class CommentWriteNotifier extends StateNotifier<AsyncValue<void>> {
     if (commentText.trim().isEmpty) return;
     state = const AsyncValue.loading();
     try {
-      await _service.addComment(
+      await _svc.addComment(
         articleId: articleId,
         commentText: commentText.trim(),
         parentId: parentId,
@@ -233,18 +246,17 @@ final commentWriteProvider =
     );
 
 class FollowNotifier extends StateNotifier<AsyncValue<bool>> {
-  final ReadPageService _service;
+  final ReadPageService _svc;
   final String _targetUserId;
 
-  FollowNotifier(this._service, this._targetUserId)
+  FollowNotifier(this._svc, this._targetUserId)
     : super(const AsyncValue.loading()) {
     _load();
   }
 
   Future<void> _load() async {
     try {
-      final following = await _service.isFollowing(_targetUserId);
-      state = AsyncValue.data(following);
+      state = AsyncValue.data(await _svc.isFollowing(_targetUserId));
     } catch (e, s) {
       state = AsyncValue.error(e, s);
     }
@@ -253,10 +265,9 @@ class FollowNotifier extends StateNotifier<AsyncValue<bool>> {
   Future<void> toggle() async {
     final current = state.asData?.value;
     if (current == null) return;
-
     state = AsyncValue.data(!current);
     try {
-      final result = await _service.toggleFollow(_targetUserId, current);
+      final result = await _svc.toggleFollow(_targetUserId, current);
       state = AsyncValue.data(result);
     } catch (_) {
       state = AsyncValue.data(current);
@@ -274,9 +285,8 @@ final followProvider =
     );
 
 class ReportNotifier extends StateNotifier<AsyncValue<void>> {
-  final ReadPageService _service;
-
-  ReportNotifier(this._service) : super(const AsyncValue.data(null));
+  final ReadPageService _svc;
+  ReportNotifier(this._svc) : super(const AsyncValue.data(null));
 
   Future<void> submit({
     required String targetId,
@@ -287,7 +297,7 @@ class ReportNotifier extends StateNotifier<AsyncValue<void>> {
   }) async {
     state = const AsyncValue.loading();
     try {
-      await _service.submitReport(
+      await _svc.submitReport(
         targetId: targetId,
         targetType: targetType,
         reasonCategory: reasonCategory,
