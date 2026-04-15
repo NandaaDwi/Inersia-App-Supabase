@@ -21,7 +21,8 @@ class MainPageService {
             users:author_id (name, photo_url),
             categories:category_id (name)
           ''')
-          .eq('status', 'published');
+          .eq('status', 'published')
+          .eq('users.status', 'active');
 
       if (categoryId != null) {
         query = query.eq('category_id', categoryId);

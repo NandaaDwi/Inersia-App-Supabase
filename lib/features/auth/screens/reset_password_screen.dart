@@ -35,7 +35,7 @@ class ResetPasswordScreen extends HookConsumerWidget {
       } else if (next is AsyncError) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(AuthErrorHandler.mapError(next.error)),
+            content: Text(AuthErrorHandler.map(next.error)),
             backgroundColor: Colors.redAccent,
           ),
         );

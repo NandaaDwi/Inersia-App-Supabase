@@ -1,13 +1,9 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
-import 'package:inersia_supabase/config/supabase_config.dart';
-import 'package:inersia_supabase/features/admin/manageArticle/providers/admin_article_provider.dart';
 import 'package:inersia_supabase/models/article_model.dart';
 import 'package:inersia_supabase/utils/dateUtills.dart';
 
-/// Halaman read-only untuk artikel milik user.
-/// Admin hanya bisa melihat, tidak bisa edit konten.
 class AdminArticleViewScreen extends ConsumerWidget {
   final ArticleModel article;
   const AdminArticleViewScreen({super.key, required this.article});
@@ -20,7 +16,6 @@ class AdminArticleViewScreen extends ConsumerWidget {
       backgroundColor: const Color(0xFF0D0D0D),
       body: CustomScrollView(
         slivers: [
-          // ── App Bar dengan thumbnail ──────────────────────
           SliverAppBar(
             expandedHeight: 240,
             pinned: true,
@@ -32,17 +27,21 @@ class AdminArticleViewScreen extends ConsumerWidget {
                 shape: BoxShape.circle,
               ),
               child: IconButton(
-                icon: const Icon(Icons.arrow_back_ios_new,
-                    color: Colors.white, size: 16),
+                icon: const Icon(
+                  Icons.arrow_back_ios_new,
+                  color: Colors.white,
+                  size: 16,
+                ),
                 onPressed: () => Navigator.pop(context),
               ),
             ),
             actions: [
-              // Badge "Tampilan Admin"
               Container(
                 margin: const EdgeInsets.all(8),
                 padding: const EdgeInsets.symmetric(
-                    horizontal: 10, vertical: 6),
+                  horizontal: 10,
+                  vertical: 6,
+                ),
                 decoration: BoxDecoration(
                   color: const Color(0xFF1E3A5F),
                   borderRadius: BorderRadius.circular(20),
@@ -50,14 +49,20 @@ class AdminArticleViewScreen extends ConsumerWidget {
                 child: const Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Icon(Icons.shield_outlined,
-                        size: 13, color: Color(0xFF60A5FA)),
+                    Icon(
+                      Icons.shield_outlined,
+                      size: 13,
+                      color: Color(0xFF60A5FA),
+                    ),
                     SizedBox(width: 4),
-                    Text('Admin View',
-                        style: TextStyle(
-                            color: Color(0xFF60A5FA),
-                            fontSize: 11,
-                            fontWeight: FontWeight.w600)),
+                    Text(
+                      'Admin View',
+                      style: TextStyle(
+                        color: Color(0xFF60A5FA),
+                        fontSize: 11,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
                   ],
                 ),
               ),
@@ -67,8 +72,11 @@ class AdminArticleViewScreen extends ConsumerWidget {
                 fit: StackFit.expand,
                 children: [
                   article.thumbnail != null
-                      ? Image.network(article.thumbnail!, fit: BoxFit.cover,
-                          errorBuilder: (_, __, ___) => _thumbPlaceholder())
+                      ? Image.network(
+                          article.thumbnail!,
+                          fit: BoxFit.cover,
+                          errorBuilder: (_, __, ___) => _thumbPlaceholder(),
+                        )
                       : _thumbPlaceholder(),
                   DecoratedBox(
                     decoration: BoxDecoration(
@@ -88,12 +96,15 @@ class AdminArticleViewScreen extends ConsumerWidget {
                     left: 20,
                     right: 20,
                     bottom: 16,
-                    child: Text(article.title,
-                        style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 22,
-                            fontWeight: FontWeight.w800,
-                            height: 1.25)),
+                    child: Text(
+                      article.title,
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 22,
+                        fontWeight: FontWeight.w800,
+                        height: 1.25,
+                      ),
+                    ),
                   ),
                 ],
               ),
@@ -106,7 +117,6 @@ class AdminArticleViewScreen extends ConsumerWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // ── Info penulis ──────────────────────────
                   Row(
                     children: [
                       CircleAvatar(
@@ -121,9 +131,11 @@ class AdminArticleViewScreen extends ConsumerWidget {
                                     ? article.authorName[0].toUpperCase()
                                     : 'U',
                                 style: const TextStyle(
-                                    color: Colors.white,
-                                    fontWeight: FontWeight.bold,
-                                    fontSize: 13))
+                                  color: Colors.white,
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 13,
+                                ),
+                              )
                             : null,
                       ),
                       const SizedBox(width: 10),
@@ -131,15 +143,20 @@ class AdminArticleViewScreen extends ConsumerWidget {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Text(article.authorName,
-                                style: const TextStyle(
-                                    color: Colors.white,
-                                    fontWeight: FontWeight.w600,
-                                    fontSize: 13)),
+                            Text(
+                              article.authorName,
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontWeight: FontWeight.w600,
+                                fontSize: 13,
+                              ),
+                            ),
                             Text(
                               '${AppDateUtils.formatDate(article.createdAt)}  •  ${article.estimatedReading} menit baca',
                               style: const TextStyle(
-                                  color: Color(0xFF6B7280), fontSize: 11),
+                                color: Color(0xFF6B7280),
+                                fontSize: 11,
+                              ),
                             ),
                           ],
                         ),
@@ -148,28 +165,35 @@ class AdminArticleViewScreen extends ConsumerWidget {
                   ),
                   const SizedBox(height: 20),
 
-                  // ── Notifikasi read-only ──────────────────
                   Container(
                     padding: const EdgeInsets.symmetric(
-                        horizontal: 14, vertical: 10),
+                      horizontal: 14,
+                      vertical: 10,
+                    ),
                     decoration: BoxDecoration(
                       color: const Color(0xFF1E3A5F).withOpacity(0.3),
                       borderRadius: BorderRadius.circular(12),
                       border: Border.all(
-                          color: const Color(0xFF1E3A5F), width: 0.5),
+                        color: const Color(0xFF1E3A5F),
+                        width: 0.5,
+                      ),
                     ),
                     child: const Row(
                       children: [
-                        Icon(Icons.info_outline,
-                            size: 16, color: Color(0xFF60A5FA)),
+                        Icon(
+                          Icons.info_outline,
+                          size: 16,
+                          color: Color(0xFF60A5FA),
+                        ),
                         SizedBox(width: 8),
                         Expanded(
                           child: Text(
                             'Mode tampilan Admin. Kamu tidak dapat mengedit artikel pengguna.',
                             style: TextStyle(
-                                color: Color(0xFF93C5FD),
-                                fontSize: 12,
-                                height: 1.4),
+                              color: Color(0xFF93C5FD),
+                              fontSize: 12,
+                              height: 1.4,
+                            ),
                           ),
                         ),
                       ],
@@ -177,72 +201,84 @@ class AdminArticleViewScreen extends ConsumerWidget {
                   ),
                   const SizedBox(height: 20),
 
-                  // ── Konten artikel ────────────────────────
                   ...paragraphs.map(
                     (para) => Padding(
                       padding: const EdgeInsets.only(bottom: 16),
-                      child: Text(para,
-                          style: const TextStyle(
-                              color: Color(0xFFD1D5DB),
-                              fontSize: 15,
-                              height: 1.75,
-                              letterSpacing: 0.1)),
+                      child: Text(
+                        para,
+                        style: const TextStyle(
+                          color: Color(0xFFD1D5DB),
+                          fontSize: 15,
+                          height: 1.75,
+                          letterSpacing: 0.1,
+                        ),
+                      ),
                     ),
                   ),
 
-                  // ── Tags ──────────────────────────────────
                   if (article.tags.isNotEmpty) ...[
                     const SizedBox(height: 8),
                     Wrap(
                       spacing: 8,
                       runSpacing: 8,
                       children: article.tags
-                          .map((tag) => Container(
-                                padding: const EdgeInsets.symmetric(
-                                    horizontal: 12, vertical: 5),
-                                decoration: BoxDecoration(
-                                  color: const Color(0xFF161616),
-                                  borderRadius: BorderRadius.circular(20),
-                                  border: Border.all(
-                                      color: const Color(0xFF1F2937)),
+                          .map(
+                            (tag) => Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 12,
+                                vertical: 5,
+                              ),
+                              decoration: BoxDecoration(
+                                color: const Color(0xFF161616),
+                                borderRadius: BorderRadius.circular(20),
+                                border: Border.all(
+                                  color: const Color(0xFF1F2937),
                                 ),
-                                child: Text('#${tag.name}',
-                                    style: const TextStyle(
-                                        color: Color(0xFF6B7280),
-                                        fontSize: 13)),
-                              ))
+                              ),
+                              child: Text(
+                                '#${tag.name}',
+                                style: const TextStyle(
+                                  color: Color(0xFF6B7280),
+                                  fontSize: 13,
+                                ),
+                              ),
+                            ),
+                          )
                           .toList(),
                     ),
                   ],
                   const SizedBox(height: 24),
 
-                  // ── Stats ─────────────────────────────────
                   Container(
                     padding: const EdgeInsets.symmetric(
-                        horizontal: 20, vertical: 16),
+                      horizontal: 20,
+                      vertical: 16,
+                    ),
                     decoration: BoxDecoration(
                       color: const Color(0xFF111827),
                       borderRadius: BorderRadius.circular(16),
                     ),
                     child: Row(
                       children: [
-                        _StatCell(
-                            label: 'Suka',
-                            value: '${article.likeCount}'),
+                        _StatCell(label: 'Suka', value: '${article.likeCount}'),
                         Container(
-                            width: 1,
-                            height: 32,
-                            color: const Color(0xFF1F2937)),
+                          width: 1,
+                          height: 32,
+                          color: const Color(0xFF1F2937),
+                        ),
                         _StatCell(
-                            label: 'Dilihat',
-                            value: '${article.viewCount}'),
+                          label: 'Dilihat',
+                          value: '${article.viewCount}',
+                        ),
                         Container(
-                            width: 1,
-                            height: 32,
-                            color: const Color(0xFF1F2937)),
+                          width: 1,
+                          height: 32,
+                          color: const Color(0xFF1F2937),
+                        ),
                         _StatCell(
-                            label: 'Komentar',
-                            value: '${article.commentCount}'),
+                          label: 'Komentar',
+                          value: '${article.commentCount}',
+                        ),
                       ],
                     ),
                   ),
@@ -275,12 +311,11 @@ class AdminArticleViewScreen extends ConsumerWidget {
   }
 
   Widget _thumbPlaceholder() => Container(
-        color: const Color(0xFF111827),
-        child: const Center(
-          child: Icon(Icons.image_outlined,
-              color: Color(0xFF374151), size: 48),
-        ),
-      );
+    color: const Color(0xFF111827),
+    child: const Center(
+      child: Icon(Icons.image_outlined, color: Color(0xFF374151), size: 48),
+    ),
+  );
 }
 
 class _StatCell extends StatelessWidget {
@@ -293,15 +328,19 @@ class _StatCell extends StatelessWidget {
     return Expanded(
       child: Column(
         children: [
-          Text(value,
-              style: const TextStyle(
-                  color: Colors.white,
-                  fontSize: 20,
-                  fontWeight: FontWeight.w800)),
+          Text(
+            value,
+            style: const TextStyle(
+              color: Colors.white,
+              fontSize: 20,
+              fontWeight: FontWeight.w800,
+            ),
+          ),
           const SizedBox(height: 2),
-          Text(label,
-              style:
-                  const TextStyle(color: Color(0xFF6B7280), fontSize: 12)),
+          Text(
+            label,
+            style: const TextStyle(color: Color(0xFF6B7280), fontSize: 12),
+          ),
         ],
       ),
     );

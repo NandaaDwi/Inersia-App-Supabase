@@ -77,29 +77,15 @@ class ArticleEditorScreen extends HookConsumerWidget {
       if (status == 'published') {
         final fullText = '$title $plain';
 
-        final bad = WordFilter.checkFirst(fullText);
-        if (bad != null) {
-          _snackError(
-            context,
-            'Konten mengandung kata tidak pantas. Hapus sebelum dipublikasi.',
-          );
-          return;
-        }
-
         isChecking.value = true;
-        try {
-          final r = await ModerationClient.moderateArticle(fullText);
-          if (!r.allowed) {
-            if (context.mounted) {
-              _snackError(
-                context,
-                r.reason ?? 'Konten tidak dapat dipublikasi.',
-              );
-            }
-            return;
+        final result = await ModerationClient.moderateArticle(fullText);
+        isChecking.value = false;
+
+        if (!result.allowed) {
+          if (context.mounted) {
+            _snackError(context, result.reason!);
           }
-        } finally {
-          isChecking.value = false;
+          return;
         }
       }
 

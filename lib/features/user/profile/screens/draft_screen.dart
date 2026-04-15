@@ -48,7 +48,9 @@ class _MyArticlesScreenState extends ConsumerState<MyArticlesScreen> {
       body: Column(
         children: [
           const MyArticleSearchBar(),
+          SizedBox(height: 4,),
           const ArticleFilterBar(),
+          SizedBox(height: 4,),
           Expanded(child: _MyArticlesBody(
             state: state,
             scrollController: _scrollController,

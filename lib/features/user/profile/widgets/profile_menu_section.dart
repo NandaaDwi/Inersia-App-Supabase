@@ -69,7 +69,7 @@ class _ProfileMenuItem extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
-          color: const Color(0xFF111827),
+          color: const Color(0xFF161616),
           borderRadius: BorderRadius.circular(14),
           border: Border.all(color: const Color(0xFF1F2937), width: 0.5),
         ),

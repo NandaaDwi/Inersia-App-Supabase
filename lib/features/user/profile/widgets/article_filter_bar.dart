@@ -6,9 +6,9 @@ class ArticleFilterBar extends ConsumerWidget {
   const ArticleFilterBar({super.key});
 
   static const _filters = [
-    (null, 'Semua', Icons.apps_rounded),
-    ('draft', 'Draft', Icons.drafts_rounded),
-    ('published', 'Published', Icons.public_rounded),
+    (null, 'Semua'),
+    ('draft', 'Draft'),
+    ('published', 'Published'),
   ];
 
   @override
@@ -16,7 +16,7 @@ class ArticleFilterBar extends ConsumerWidget {
     final current = ref.watch(articleStatusFilterProvider);
 
     return SizedBox(
-      height: 42,
+      height: 36,
       child: ListView(
         scrollDirection: Axis.horizontal,
         padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -48,13 +48,6 @@ class ArticleFilterBar extends ConsumerWidget {
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Icon(
-                      f.$3,
-                      size: 13,
-                      color: isSelected
-                          ? Colors.white
-                          : const Color(0xFF6B7280),
-                    ),
                     const SizedBox(width: 5),
                     Text(
                       f.$2,

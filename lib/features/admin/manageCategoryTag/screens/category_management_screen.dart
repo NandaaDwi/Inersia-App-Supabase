@@ -20,7 +20,6 @@ class CategoryManagementScreen extends HookConsumerWidget {
 
     return Column(
       children: [
-        // Modern Input Card
         Padding(
           padding: const EdgeInsets.fromLTRB(24, 8, 24, 20),
           child: Container(
@@ -99,7 +98,6 @@ class CategoryManagementScreen extends HookConsumerWidget {
           ),
         ),
 
-        // Custom Search Bar
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 24),
           child: TextField(
@@ -114,7 +112,7 @@ class CategoryManagementScreen extends HookConsumerWidget {
                 color: Colors.white38,
               ),
               filled: true,
-              fillColor: Colors.transparent,
+              fillColor: Color(0xFF111827),
               contentPadding: EdgeInsets.zero,
               enabledBorder: UnderlineInputBorder(
                 borderSide: BorderSide(color: Colors.white.withOpacity(0.05)),
@@ -142,7 +140,7 @@ class CategoryManagementScreen extends HookConsumerWidget {
                     vertical: 12,
                   ),
                   decoration: BoxDecoration(
-                    color: const Color(0xFF161616),
+                    color: const Color(0xFF111827),
                     borderRadius: BorderRadius.circular(16),
                   ),
                   child: Row(

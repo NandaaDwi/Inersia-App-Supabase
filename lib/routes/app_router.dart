@@ -26,6 +26,7 @@ import 'package:inersia_supabase/features/user/profile/screens/profile_screen.da
 import 'package:inersia_supabase/features/user/search/screens/search_screen.dart';
 import 'package:inersia_supabase/features/user/search/screens/search_user_profile_screen.dart';
 import 'package:inersia_supabase/models/article_model.dart';
+import 'package:inersia_supabase/splash_screen.dart';
 
 Page<void> _buildPage<T>({
   required GoRouterState state,
@@ -36,7 +37,7 @@ Page<void> _buildPage<T>({
     child: child,
     transitionsBuilder: (_, animation, __, child) =>
         FadeTransition(opacity: animation, child: child),
-    transitionDuration: const Duration(milliseconds: 150),
+    transitionDuration: const Duration(milliseconds: 200),
   );
 }
 
@@ -44,12 +45,24 @@ final routerProvider = Provider<GoRouter>((ref) {
   final notifier = RouterNotifier(ref);
 
   return GoRouter(
-    initialLocation: '/',
+    initialLocation: '/splash',
     refreshListenable: notifier,
     redirect: (context, state) {
       final location = state.matchedLocation;
+      final authState = ref.read(authStateProvider);
+      final roleAsync = ref.read(userRoleProvider);
+
       final session = supabaseConfig.client.auth.currentSession;
       final isAuthenticated = session != null;
+
+      if (location == '/splash') {
+        if (authState.isLoading || roleAsync.isLoading) return null;
+
+        if (!isAuthenticated) return '/login';
+
+        final role = roleAsync.asData?.value;
+        return (role == 'admin') ? '/admin' : '/';
+      }
 
       final isAuthRoute =
           location == '/login' ||
@@ -62,20 +75,18 @@ final routerProvider = Provider<GoRouter>((ref) {
         return isAuthRoute ? null : '/login';
       }
 
-      if (isAuthenticated && isAuthRoute) {
-        if (location == '/reset-password' || location == '/verify-otp') return null;
+      if (isAuthRoute) {
+        if (location == '/reset-password' || location == '/verify-otp')
+          return null;
 
-        final roleAsync = ref.read(userRoleProvider);
-        final userRole = roleAsync.asData?.value;
-
-        if (userRole == null) return null;
-        return '/';
+        final role = roleAsync.asData?.value;
+        if (role == null) return null;
+        return (role == 'admin') ? '/admin' : '/';
       }
 
-      final roleAsync = ref.read(userRoleProvider);
       final userRole = roleAsync.asData?.value;
-
       const adminRoutes = [
+        '/admin',
         '/manageUser',
         '/manageCategoryTag',
         '/manageArticles',
@@ -84,13 +95,18 @@ final routerProvider = Provider<GoRouter>((ref) {
         '/admin-notiffications',
       ];
 
-      if (adminRoutes.contains(location) && userRole != 'admin') {
+      if (adminRoutes.any((route) => location.startsWith(route)) &&
+          userRole != 'admin') {
         return '/';
       }
 
       return null;
     },
     routes: [
+      GoRoute(
+        path: '/splash',
+        builder: (context, state) => const SplashScreen(),
+      ),
       GoRoute(
         path: '/login',
         pageBuilder: (context, state) =>
@@ -123,30 +139,13 @@ final routerProvider = Provider<GoRouter>((ref) {
       ),
       GoRoute(
         path: '/',
-        pageBuilder: (context, state) {
-          return _buildPage(
-            state: state,
-            child: Consumer(
-              builder: (context, ref, _) {
-                final roleAsync = ref.watch(userRoleProvider);
-                return roleAsync.when(
-                  data: (role) => role == 'admin'
-                      ? const AdminDashboard()
-                      : const MainPage(),
-                  loading: () => const Scaffold(
-                    backgroundColor: Color(0xFF0D0D0D),
-                    body: Center(
-                      child: CircularProgressIndicator(
-                        color: Color(0xFF2563EB),
-                      ),
-                    ),
-                  ),
-                  error: (_, __) => const MainPage(),
-                );
-              },
-            ),
-          );
-        },
+        pageBuilder: (context, state) =>
+            _buildPage(state: state, child: const MainPage()),
+      ),
+      GoRoute(
+        path: '/admin',
+        pageBuilder: (context, state) =>
+            _buildPage(state: state, child: const AdminDashboard()),
       ),
       GoRoute(
         path: '/home',
@@ -187,9 +186,7 @@ final routerProvider = Provider<GoRouter>((ref) {
         path: '/article/:id',
         redirect: (context, state) {
           final article = state.extra;
-          if (article == null || article is! ArticleModel) {
-            return '/';
-          }
+          if (article == null || article is! ArticleModel) return '/';
           return null;
         },
         pageBuilder: (context, state) {
@@ -212,8 +209,14 @@ final routerProvider = Provider<GoRouter>((ref) {
       ),
       GoRoute(
         path: '/create-article',
-        pageBuilder: (context, state) =>
-            _buildPage(state: state, child: const UserArticleEditorScreen()),
+        pageBuilder: (context, state) {
+          final extra = state.extra;
+          final article = extra is ArticleModel ? extra : null;
+          return _buildPage(
+            state: state,
+            child: UserArticleEditorScreen(article: article),
+          );
+        },
       ),
       GoRoute(
         path: '/manageUser',

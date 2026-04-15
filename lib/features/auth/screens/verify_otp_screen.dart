@@ -23,7 +23,7 @@ class VerifyOtpScreen extends HookConsumerWidget {
         },
         error: (e, _) => ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(AuthErrorHandler.mapError(e)),
+            content: Text(AuthErrorHandler.map(e)),
             backgroundColor: Colors.redAccent,
           ),
         ),

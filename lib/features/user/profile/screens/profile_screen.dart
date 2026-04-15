@@ -107,7 +107,7 @@ class _ProfileHeader extends StatelessWidget {
       width: double.infinity,
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: const Color(0xFF111827),
+        color: const Color(0xFF161616),
         borderRadius: BorderRadius.circular(20),
         border: Border.all(color: const Color(0xFF1F2937), width: 0.5),
       ),
@@ -144,7 +144,7 @@ class _ProfileHeader extends StatelessWidget {
                       color: const Color(0xFF2563EB),
                       shape: BoxShape.circle,
                       border: Border.all(
-                        color: const Color(0xFF111827),
+                        color: const Color(0xFF161616),
                         width: 2,
                       ),
                     ),
@@ -213,7 +213,7 @@ class _StatsRow extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(vertical: 16),
       decoration: BoxDecoration(
-        color: const Color(0xFF111827),
+        color: const Color(0xFF161616),
         borderRadius: BorderRadius.circular(16),
         border: Border.all(color: const Color(0xFF1F2937), width: 0.5),
       ),
@@ -297,7 +297,7 @@ class _MenuSection extends StatelessWidget {
         _MenuItem(
           icon: Icons.article_outlined,
           color: const Color(0xFF2563EB),
-          label: 'Draft Artikel',
+          label: 'Artikel Saya',
           subtitle: draftCount > 0
               ? '$draftCount artikel belum dipublikasi'
               : 'Tidak ada draft',
@@ -341,7 +341,7 @@ class _MenuItem extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
-          color: const Color(0xFF111827),
+          color: const Color(0xFF161616),
           borderRadius: BorderRadius.circular(14),
           border: Border.all(color: const Color(0xFF1F2937), width: 0.5),
         ),

@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
 import 'package:inersia_supabase/config/supabase_config.dart';
@@ -19,6 +21,10 @@ class ArticleCard extends ConsumerWidget {
       articleLikeCountStreamProvider(article.id),
     );
 
+    final commentCountAsync = ref.watch(
+      articleCommentCountStreamProvider(article.id),
+    );
+
     final likeStatusAsync = ref.watch(
       cardLikeStatusProvider((article.id, currentUserId)),
     );
@@ -27,6 +33,12 @@ class ArticleCard extends ConsumerWidget {
       data: (c) => c,
       loading: () => article.likeCount,
       error: (_, __) => article.likeCount,
+    );
+
+    final commentCount = commentCountAsync.when(
+      data: (c) => c,
+      loading: () => article.commentCount,
+      error: (_, _) => article.commentCount,
     );
 
     final isLiked = likeStatusAsync.when(
@@ -162,7 +174,7 @@ class ArticleCard extends ConsumerWidget {
                       ),
                       const SizedBox(width: 4),
                       Text(
-                        '${article.commentCount}',
+                        '${commentCount}',
                         style: const TextStyle(
                           color: Color(0xFF9CA3AF),
                           fontSize: 13,
@@ -196,15 +208,35 @@ class ArticleCard extends ConsumerWidget {
 
   String _extractExcerpt(String content) {
     if (content.isEmpty) return '';
+
     try {
-      final clean = content
-          .replaceAll(RegExp(r'\[|\]|\{|\}|"insert":"|"attributes":[^,}]+'), '')
-          .replaceAll('"', '')
-          .replaceAll(RegExp(r',\s*'), ' ')
-          .trim();
-      return clean.length > 120 ? '${clean.substring(0, 120)}...' : clean;
+      final decoded = jsonDecode(content);
+
+      String text = '';
+
+      if (decoded is List) {
+        for (final item in decoded) {
+          if (item is Map && item['insert'] != null) {
+            text += item['insert'].toString();
+          }
+        }
+      } else if (decoded is Map && decoded['insert'] != null) {
+        text = decoded['insert'].toString();
+      } else {
+        text = content;
+      }
+
+      text = text.replaceAll(RegExp(r'\s+'), ' ').trim();
+
+      if (text.isEmpty) return '';
+
+      return text.length > 120 ? '${text.substring(0, 120)}...' : text;
     } catch (_) {
-      return content.length > 120 ? '${content.substring(0, 120)}...' : content;
+      final fallback = content.replaceAll(RegExp(r'\s+'), ' ').trim();
+
+      return fallback.length > 120
+          ? '${fallback.substring(0, 120)}...'
+          : fallback;
     }
   }
 

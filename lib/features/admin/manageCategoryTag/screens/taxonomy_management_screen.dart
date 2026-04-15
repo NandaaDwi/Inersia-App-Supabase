@@ -8,7 +8,6 @@ import 'package:inersia_supabase/features/admin/manageCategoryTag/services/admin
 import 'package:inersia_supabase/models/category_model.dart';
 import 'package:inersia_supabase/models/tag_model.dart';
 
-// ─── Shared Button Styles ─────────────────────────────────────
 ButtonStyle _outlineStyle() => OutlinedButton.styleFrom(
   foregroundColor: const Color(0xFF9CA3AF),
   side: const BorderSide(color: Color(0xFF1F2937)),
@@ -32,9 +31,6 @@ ButtonStyle _dangerStyle() => ElevatedButton.styleFrom(
   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
 );
 
-// ══════════════════════════════════════════════════════════════
-// TaxonomyManagementScreen
-// ══════════════════════════════════════════════════════════════
 
 class TaxonomyManagementScreen extends HookWidget {
   const TaxonomyManagementScreen({super.key});
@@ -58,7 +54,7 @@ class TaxonomyManagementScreen extends HookWidget {
           onPressed: () => Navigator.pop(context),
         ),
         title: const Text(
-          'Kelola Metadata',
+          'Kelola kategori & Tag',
           style: TextStyle(
             color: Colors.white,
             fontWeight: FontWeight.w700,
@@ -70,7 +66,6 @@ class TaxonomyManagementScreen extends HookWidget {
           child: Container(height: 0.5, color: const Color(0xFF1F2937)),
         ),
       ),
-      // FAB untuk tambah
       floatingActionButton: Consumer(
         builder: (ctx, ref, _) => FloatingActionButton.extended(
           onPressed: () => selectedIndex.value == 0
@@ -88,13 +83,12 @@ class TaxonomyManagementScreen extends HookWidget {
       ),
       body: Column(
         children: [
-          // Segmented tab
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
             child: Container(
               padding: const EdgeInsets.all(4),
               decoration: BoxDecoration(
-                color: const Color(0xFF161616),
+                color: const Color(0xFF111827),
                 borderRadius: BorderRadius.circular(14),
                 border: Border.all(color: const Color(0xFF1F2937)),
               ),
@@ -111,7 +105,7 @@ class TaxonomyManagementScreen extends HookWidget {
                         decoration: BoxDecoration(
                           color: isSelected
                               ? const Color(0xFF2563EB)
-                              : Colors.transparent,
+                              : Color(0xFF111827),
                           borderRadius: BorderRadius.circular(10),
                         ),
                         child: Text(
@@ -186,7 +180,6 @@ class TaxonomyManagementScreen extends HookWidget {
   }
 }
 
-// ── Category Tab ──────────────────────────────────────────────
 
 class _CategoryTab extends ConsumerWidget {
   const _CategoryTab({super.key});
@@ -276,7 +269,7 @@ class _CategoryItem extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.fromLTRB(16, 14, 8, 14),
       decoration: BoxDecoration(
-        color: const Color(0xFF161616),
+        color: const Color(0xFF111827),
         borderRadius: BorderRadius.circular(14),
         border: Border.all(color: const Color(0xFF1F2937), width: 0.5),
       ),
@@ -340,7 +333,6 @@ class _CategoryItem extends StatelessWidget {
   }
 }
 
-// ── Tag Tab ───────────────────────────────────────────────────
 
 class _TagTab extends ConsumerWidget {
   const _TagTab({super.key});
@@ -428,7 +420,7 @@ class _TagItem extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.fromLTRB(16, 14, 8, 14),
       decoration: BoxDecoration(
-        color: const Color(0xFF161616),
+        color: const Color(0xFF111827),
         borderRadius: BorderRadius.circular(14),
         border: Border.all(color: const Color(0xFF1F2937), width: 0.5),
       ),
@@ -506,7 +498,6 @@ class _TagItem extends StatelessWidget {
   }
 }
 
-// ── Bottom Sheet Forms ────────────────────────────────────────
 
 class _CategoryFormSheet extends HookWidget {
   final CategoryModel? item;
@@ -614,7 +605,6 @@ class _TagFormSheet extends HookWidget {
   }
 }
 
-// ── Shared sheet/dialog widgets ───────────────────────────────
 
 class _FormSheetWrapper extends StatelessWidget {
   final IconData icon;
@@ -890,7 +880,7 @@ class _SearchBar extends StatelessWidget {
             size: 20,
           ),
           filled: true,
-          fillColor: const Color(0xFF161616),
+          fillColor: const Color(0xFF111827),
           border: OutlineInputBorder(
             borderRadius: BorderRadius.circular(12),
             borderSide: const BorderSide(color: Color(0xFF1F2937)),

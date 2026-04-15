@@ -19,13 +19,16 @@ class DraftService {
 
     var req = _client
         .from('articles')
-        .select(
-          'id, author_id, title, thumbnail, status, category_id,'
-          'estimated_reading, like_count, comment_count, view_count,'
-          'created_at, updated_at, content,'
-          'users:author_id(name, photo_url),'
-          'categories:category_id(name)',
-        )
+        .select('''
+          id, author_id, title, thumbnail, status, category_id,
+          estimated_reading, like_count, comment_count, view_count,
+          created_at, updated_at, content,
+          users:author_id(name, photo_url),
+          categories:category_id(name),
+          article_tags(
+            tags(*)
+          )
+        ''')
         .eq('author_id', uid);
 
     if (status != null) {

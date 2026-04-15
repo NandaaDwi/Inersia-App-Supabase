@@ -46,25 +46,24 @@ class ArticleModel extends Equatable {
 
     List<TagModel> parsedTags = [];
     try {
-      if (json['article_tags'] != null && json['article_tags'] is List) {
-        parsedTags = (json['article_tags'] as List).map((e) {
-          final tagData = e['tags'];
-          if (tagData != null) {
-            return TagModel.fromJson(tagData as Map<String, dynamic>);
-          }
-          return TagModel(
-            id: '',
-            name: '',
-            articleCount: 0,
-            createdAt: DateTime.now(),
-          );
-        }).toList();
-      } else if (json['tags'] != null && json['tags'] is List) {
+      if (json['article_tags'] is List) {
+        parsedTags = (json['article_tags'] as List)
+            .map((e) {
+              final tagData = e['tags'];
+              return tagData != null ? TagModel.fromJson(tagData) : null;
+            })
+            .whereType<TagModel>()
+            .toList();
+      } else if (json['tags'] is List) {
         parsedTags = (json['tags'] as List)
-            .map((e) => TagModel.fromJson(e as Map<String, dynamic>))
+            .map((e) => e is Map<String, dynamic> ? TagModel.fromJson(e) : null)
+            .whereType<TagModel>()
             .toList();
       }
-    } catch (_) {}
+    } catch (e, stack) {
+      print('Error parsing tags: $e');
+      print(stack.toString());
+    }
 
     return ArticleModel(
       id: json['id'] as String? ?? '',

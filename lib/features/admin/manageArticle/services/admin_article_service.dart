@@ -17,7 +17,8 @@ class AdminArticleService {
     var request = _client.from('articles').select('''
       *,
       categories(*),
-      article_tags(tags(*))
+      article_tags(tags(*)),
+      users:author_id(*)
     ''');
 
     if (query.isNotEmpty) request = request.ilike('title', '%$query%');

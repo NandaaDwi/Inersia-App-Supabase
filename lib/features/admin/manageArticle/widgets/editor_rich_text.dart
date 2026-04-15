@@ -1,9 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_quill/flutter_quill.dart' as quill;
 
-/// Widget editor artikel — dipakai di admin DAN user editor.
-/// Toolbar di bawah editor (bukan di atas), auto-sticky di atas keyboard
-/// via bottomSheet di parent Scaffold.
 class EditorRichText extends StatelessWidget {
   final quill.QuillController controller;
   final ScrollController scrollController;
@@ -42,17 +39,20 @@ class EditorRichText extends StatelessWidget {
             borderRadius: BorderRadius.circular(14),
             border: Border.all(color: const Color(0xFF1F2937)),
           ),
-          child: quill.QuillEditor(
-            controller: controller,
-            scrollController: scrollController,
-            focusNode: focusNode,
-            config: quill.QuillEditorConfig(
-              scrollable: false,
-              expands: false,
-              autoFocus: false,
-              placeholder: 'Mulai menulis konten artikel...',
-              padding: EdgeInsets.zero,
-              customStyles: _buildStyles(),
+          child: DefaultTextStyle(
+            style: const TextStyle(color: Color(0xFFD1D5DB)),
+            child: quill.QuillEditor(
+              controller: controller,
+              scrollController: scrollController,
+              focusNode: focusNode,
+              config: quill.QuillEditorConfig(
+                scrollable: true,
+                expands: false,
+                autoFocus: false,
+                placeholder: 'Mulai menulis konten artikel...',
+                padding: EdgeInsets.zero,
+                customStyles: _buildStyles(),
+              ),
             ),
           ),
         ),
@@ -120,10 +120,10 @@ class EditorRichText extends StatelessWidget {
       null,
     ),
     lists: quill.DefaultListBlockStyle(
-      const TextStyle(color: Color(0xFFD1D5DB), fontSize: 15, height: 1.65),
+      const TextStyle(color: Color(0xFFD1D5DB), fontSize: 15, height: 1.3),
       const quill.HorizontalSpacing(0, 0),
       const quill.VerticalSpacing(0, 0),
-      const quill.VerticalSpacing(4, 0),
+      const quill.VerticalSpacing(0, 0),
       null,
       null,
     ),
@@ -170,12 +170,6 @@ class EditorRichText extends StatelessWidget {
   );
 }
 
-/// Toolbar yang sticky di atas keyboard.
-/// Pasang ini sebagai `bottomSheet` di Scaffold:
-///
-/// ```dart
-/// bottomSheet: QuillKeyboardToolbar(controller: quillCtrl),
-/// ```
 class QuillKeyboardToolbar extends StatelessWidget {
   final quill.QuillController controller;
   const QuillKeyboardToolbar({super.key, required this.controller});
@@ -379,18 +373,21 @@ class _T extends StatelessWidget {
 
   @override
   Widget build(_) {
+    final style = c.getSelectionStyle();
     bool active = false;
-    try {
-      final attrs = c.getSelectionStyle().attributes;
-      final val = attrs[attr.key];
-      active = attr.key == 'list'
-          ? val?.value == attr.value
-          : val?.value == true;
-    } catch (_) {}
+
+    if (attr.key == 'list') {
+      active = style.attributes[attr.key]?.value == attr.value;
+    } else {
+      active = style.attributes.containsKey(attr.key);
+    }
+
     return _Btn(
       active: active,
-      onTap: () =>
-          c.formatSelection(active ? quill.Attribute.clone(attr, null) : attr),
+      onTap: () {
+        // Toggle attribute
+        c.formatSelection(active ? quill.Attribute.clone(attr, null) : attr);
+      },
       child: Icon(
         icon,
         size: 18,
@@ -440,6 +437,7 @@ class _I extends StatelessWidget {
   Widget build(_) => _Btn(
     onTap: onTap,
     child: Icon(icon, size: 18, color: const Color(0xFF9CA3AF)),
+    behavior: HitTestBehavior.opaque,
   );
 }
 
@@ -447,7 +445,13 @@ class _Btn extends StatelessWidget {
   final bool active;
   final VoidCallback onTap;
   final Widget child;
-  const _Btn({this.active = false, required this.onTap, required this.child});
+  final HitTestBehavior? behavior;
+  const _Btn({
+    this.active = false,
+    required this.onTap,
+    required this.child,
+    this.behavior,
+  });
 
   @override
   Widget build(_) => GestureDetector(

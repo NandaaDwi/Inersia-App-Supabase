@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter_hooks/flutter_hooks.dart';
+import 'package:go_router/go_router.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
 import 'package:inersia_supabase/config/supabase_config.dart';
 import 'package:inersia_supabase/features/user/mainPage/providers/read_page_provider.dart';
@@ -29,7 +30,6 @@ class ArticleReadScreen extends HookConsumerWidget {
     final commentsAsync = ref.watch(commentsRealtimeProvider(article.id));
     final commentWrite = ref.watch(commentWriteProvider);
 
-    // Fetch artikel lengkap (dengan tags dll)
     final articleAsync = ref.watch(articleDetailProvider(article.id));
 
     return articleAsync.when(
@@ -47,7 +47,6 @@ class ArticleReadScreen extends HookConsumerWidget {
           backgroundColor: const Color(0xFF0D0D0D),
           body: CustomScrollView(
             slivers: [
-              // ── AppBar / Hero ───────────────────────────────
               SliverAppBar(
                 expandedHeight: 280,
                 pinned: true,
@@ -113,33 +112,36 @@ class ArticleReadScreen extends HookConsumerWidget {
                 ),
               ),
 
-              // ── Body ───────────────────────────────────────
               SliverToBoxAdapter(
                 child: Padding(
                   padding: const EdgeInsets.fromLTRB(20, 0, 20, 40),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      // Author row
                       Row(
                         children: [
-                          CircleAvatar(
-                            radius: 20,
-                            backgroundColor: const Color(0xFF1F2937),
-                            backgroundImage: full.authorPhoto != null
-                                ? NetworkImage(full.authorPhoto!)
-                                : null,
-                            child: full.authorPhoto == null
-                                ? Text(
-                                    full.authorName.isNotEmpty
-                                        ? full.authorName[0].toUpperCase()
-                                        : 'U',
-                                    style: const TextStyle(
-                                      color: Colors.white,
-                                      fontWeight: FontWeight.bold,
-                                    ),
-                                  )
-                                : null,
+                          GestureDetector(
+                            onTap: () {
+                              context.push('/user/${full.authorId}');
+                            },
+                            child: CircleAvatar(
+                              radius: 20,
+                              backgroundColor: const Color(0xFF1F2937),
+                              backgroundImage: full.authorPhoto != null
+                                  ? NetworkImage(full.authorPhoto!)
+                                  : null,
+                              child: full.authorPhoto == null
+                                  ? Text(
+                                      full.authorName.isNotEmpty
+                                          ? full.authorName[0].toUpperCase()
+                                          : 'U',
+                                      style: const TextStyle(
+                                        color: Colors.white,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    )
+                                  : null,
+                            ),
                           ),
                           const SizedBox(width: 12),
                           Expanded(
@@ -185,7 +187,6 @@ class ArticleReadScreen extends HookConsumerWidget {
                       ),
                       const SizedBox(height: 24),
 
-                      // Konten
                       ...paragraphs.map(
                         (p) => Padding(
                           padding: const EdgeInsets.only(bottom: 16),
@@ -202,7 +203,6 @@ class ArticleReadScreen extends HookConsumerWidget {
                       ),
                       const SizedBox(height: 16),
 
-                      // Tags
                       if (full.tags.isNotEmpty)
                         Wrap(
                           spacing: 8,
@@ -234,7 +234,6 @@ class ArticleReadScreen extends HookConsumerWidget {
                         ),
                       const SizedBox(height: 24),
 
-                      // Stats box
                       statsAsync.when(
                         data: (stats) => _StatsBox(
                           likeCount: stats.likeCount,
@@ -254,7 +253,6 @@ class ArticleReadScreen extends HookConsumerWidget {
                       ),
                       const SizedBox(height: 32),
 
-                      // Komentar header
                       Row(
                         children: [
                           const Text(
@@ -300,7 +298,6 @@ class ArticleReadScreen extends HookConsumerWidget {
                       ),
                       const SizedBox(height: 16),
 
-                      // Input komentar
                       _CommentInput(
                         controller: commentCtrl,
                         focusNode: commentFocus,
@@ -334,7 +331,6 @@ class ArticleReadScreen extends HookConsumerWidget {
                         ),
                       const SizedBox(height: 20),
 
-                      // Daftar komentar — terbaru di atas
                       commentsAsync.when(
                         data: (comments) => comments.isEmpty
                             ? const Padding(
@@ -391,7 +387,6 @@ class ArticleReadScreen extends HookConsumerWidget {
             ],
           ),
 
-          // ── Bottom bar ──────────────────────────────────────
           bottomNavigationBar: Container(
             decoration: const BoxDecoration(
               color: Color(0xFF111827),
@@ -409,9 +404,6 @@ class ArticleReadScreen extends HookConsumerWidget {
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    // Like button
-                    // BUG FIX: likeCount diambil HANYA dari statsAsync (Realtime stream)
-                    // Tidak ada manual increment di sini — mencegah +2
                     likeState.when(
                       data: (like) => statsAsync.when(
                         data: (stats) => GestureDetector(
@@ -475,7 +467,6 @@ class ArticleReadScreen extends HookConsumerWidget {
                       error: (_, __) => const SizedBox.shrink(),
                     ),
 
-                    // Bookmark button
                     bookmarkState.when(
                       data: (saved) => GestureDetector(
                         onTap: () => ref
@@ -508,7 +499,6 @@ class ArticleReadScreen extends HookConsumerWidget {
     );
   }
 
-  // ── Report bottom sheet ────────────────────────────────────
   void _reportSheet({
     required BuildContext context,
     required WidgetRef ref,
@@ -549,8 +539,6 @@ class ArticleReadScreen extends HookConsumerWidget {
       ),
     );
   }
-
-  // ── Helpers ────────────────────────────────────────────────
 
   String _fmt(int n) {
     if (n >= 1000000) return '${(n / 1000000).toStringAsFixed(1)}M';
@@ -699,8 +687,6 @@ class ArticleReadScreen extends HookConsumerWidget {
   );
 }
 
-// ── Widgets ────────────────────────────────────────────────────
-
 class _CircleBtn extends StatelessWidget {
   final IconData icon;
   final VoidCallback onTap;
@@ -814,7 +800,6 @@ class _S extends StatelessWidget {
   );
 }
 
-// ── Comment item — sensor sync ─────────────────────────────────
 class _CommentItem extends StatelessWidget {
   final CommentModel comment;
   final String currentUserId;
@@ -828,7 +813,6 @@ class _CommentItem extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // Sensor sync — instan, tanpa network
     final text = ModerationClient.censorCommentSync(comment.commentText);
 
     return Padding(
@@ -836,20 +820,25 @@ class _CommentItem extends StatelessWidget {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          CircleAvatar(
-            radius: 18,
-            backgroundColor: const Color(0xFF1F2937),
-            backgroundImage: comment.userPhoto != null
-                ? NetworkImage(comment.userPhoto!)
-                : null,
-            child: comment.userPhoto == null
-                ? Text(
-                    comment.userName.isNotEmpty
-                        ? comment.userName[0].toUpperCase()
-                        : 'U',
-                    style: const TextStyle(color: Colors.white, fontSize: 13),
-                  )
-                : null,
+          GestureDetector(
+            onTap: () {
+              context.push('/user/${comment.userId}');
+            },
+            child: CircleAvatar(
+              radius: 18,
+              backgroundColor: const Color(0xFF1F2937),
+              backgroundImage: comment.userPhoto != null
+                  ? NetworkImage(comment.userPhoto!)
+                  : null,
+              child: comment.userPhoto == null
+                  ? Text(
+                      comment.userName.isNotEmpty
+                          ? comment.userName[0].toUpperCase()
+                          : 'U',
+                      style: const TextStyle(color: Colors.white, fontSize: 13),
+                    )
+                  : null,
+            ),
           ),
           const SizedBox(width: 12),
           Expanded(
@@ -875,7 +864,6 @@ class _CommentItem extends StatelessWidget {
                       ),
                     ),
                     const Spacer(),
-                    // Tombol report — hanya untuk komentar user lain
                     if (comment.userId != currentUserId)
                       GestureDetector(
                         onTap: onReport,
@@ -908,7 +896,6 @@ class _CommentItem extends StatelessWidget {
   }
 }
 
-// ── Comment input ───────────────────────────────────────────────
 class _CommentInput extends StatelessWidget {
   final TextEditingController controller;
   final FocusNode focusNode;
@@ -990,7 +977,6 @@ class _CommentInput extends StatelessWidget {
   );
 }
 
-// ── Report sheet ────────────────────────────────────────────────
 class _ReportSheet extends HookWidget {
   final String targetType;
   final Future<void> Function(String reason, String? description) onSubmit;

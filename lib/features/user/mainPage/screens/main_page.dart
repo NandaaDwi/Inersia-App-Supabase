@@ -51,7 +51,6 @@ class _MainPageState extends ConsumerState<MainPage> {
     final selectedCategory = ref.watch(selectedCategoryProvider);
     final location = GoRouterState.of(context).matchedLocation;
 
-    // Watch unread notification count
     final unreadCountAsync = ref.watch(unreadCountProvider);
 
     return Scaffold(
@@ -93,7 +92,6 @@ class _MainPageState extends ConsumerState<MainPage> {
                 ),
               ),
               actions: [
-                // Notification bell dengan badge unread count
                 unreadCountAsync.when(
                   data: (count) => IconButton(
                     icon: Stack(
@@ -348,6 +346,7 @@ class _CategoryChip extends StatelessWidget {
       onTap: onTap,
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 200),
+        alignment: Alignment.center,
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
         decoration: BoxDecoration(
           color: isSelected ? const Color(0xFF2563EB) : const Color(0xFF161616),

@@ -53,6 +53,7 @@ class UserArticleEditorScreen extends HookConsumerWidget {
       }
       return quill.QuillController.basic();
     });
+    useListenable(quillCtrl);
 
     useEffect(() => quillCtrl.dispose, const []);
 
@@ -151,35 +152,18 @@ class UserArticleEditorScreen extends HookConsumerWidget {
         return;
       }
 
-      // Filter hanya saat Publish
       if (status == 'published') {
         final fullText = '$title $plain';
 
-        // Layer 1 — lokal (substring match, instan)
-        final bad = WordFilter.checkFirst(fullText);
-        if (bad != null) {
-          _snackError(
-            context,
-            'Artikel mengandung kata tidak pantas. Hapus sebelum dipublikasi.',
-          );
-          return;
-        }
-
-        // Layer 2 — OpenAI via Edge Function
         isChecking.value = true;
-        try {
-          final result = await ModerationClient.moderateArticle(fullText);
-          if (!result.allowed) {
-            if (context.mounted) {
-              _snackError(
-                context,
-                result.reason ?? 'Konten tidak dapat dipublikasi.',
-              );
-            }
-            return;
+        final result = await ModerationClient.moderateArticle(fullText);
+        isChecking.value = false;
+
+        if (!result.allowed) {
+          if (context.mounted) {
+            _snackError(context, result.reason!);
           }
-        } finally {
-          isChecking.value = false;
+          return; 
         }
       }
 
@@ -237,7 +221,6 @@ class UserArticleEditorScreen extends HookConsumerWidget {
       },
       child: Scaffold(
         backgroundColor: const Color(0xFF0D0D0D),
-        // Toolbar sticky di atas keyboard
         bottomSheet: QuillKeyboardToolbar(controller: quillCtrl),
         appBar: AppBar(
           backgroundColor: const Color(0xFF0D0D0D),
@@ -324,12 +307,10 @@ class UserArticleEditorScreen extends HookConsumerWidget {
           ],
         ),
         body: SingleChildScrollView(
-          // 80px bawah = ruang toolbar sticky
           padding: const EdgeInsets.fromLTRB(20, 20, 20, 80),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Thumbnail
               _ThumbPicker(
                 thumbnail: thumbnail,
                 article: article,
@@ -337,7 +318,6 @@ class UserArticleEditorScreen extends HookConsumerWidget {
               ),
               const SizedBox(height: 24),
 
-              // Judul
               TextField(
                 controller: titleCtrl,
                 style: const TextStyle(
@@ -358,7 +338,6 @@ class UserArticleEditorScreen extends HookConsumerWidget {
               const Divider(color: Color(0xFF1F2937), height: 1),
               const SizedBox(height: 20),
 
-              // Kategori
               _SLabel('KATEGORI'),
               const SizedBox(height: 8),
               isCategoryLoading.value
@@ -384,7 +363,6 @@ class UserArticleEditorScreen extends HookConsumerWidget {
                     ),
               const SizedBox(height: 20),
 
-              // Tag
               Row(
                 children: [
                   _SLabel('TAG'),
@@ -521,7 +499,6 @@ class UserArticleEditorScreen extends HookConsumerWidget {
               ],
               const SizedBox(height: 24),
 
-              // Editor konten — EditorRichText dari shared widget
               EditorRichText(
                 controller: quillCtrl,
                 scrollController: editorScrollCtrl,
@@ -573,8 +550,6 @@ class UserArticleEditorScreen extends HookConsumerWidget {
     ),
   );
 }
-
-// ── Shared widgets ─────────────────────────────────────────────
 
 class _ThumbPicker extends StatelessWidget {
   final ValueNotifier<File?> thumbnail;

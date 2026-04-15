@@ -125,6 +125,20 @@ final articleLikeCountStreamProvider = StreamProvider.family<int, String>((
       });
 });
 
+final articleCommentCountStreamProvider = StreamProvider.family<int, String>((
+  ref,
+  articleId,
+) {
+  return supabaseConfig.client
+      .from('articles')
+      .stream(primaryKey: ['id'])
+      .eq('id', articleId)
+      .map((rows) {
+        if (rows.isEmpty) return 0;
+        return rows.first['comment_count'] as int? ?? 0;
+      });
+});
+
 final cardLikeStatusProvider = FutureProvider.family<bool, (String, String)>((
   ref,
   args,
