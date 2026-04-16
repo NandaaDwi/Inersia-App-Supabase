@@ -14,11 +14,11 @@ class ForgotPasswordScreen extends HookConsumerWidget {
     final emailController = useTextEditingController();
     final state = ref.watch(authProvider);
     final countdown = useState(0);
-    Timer? timer;
+    final isKeyboardVisible = MediaQuery.of(context).viewInsets.bottom != 0;
 
     void startTimer() {
       countdown.value = 60;
-      timer = Timer.periodic(const Duration(seconds: 1), (t) {
+      Timer.periodic(const Duration(seconds: 1), (t) {
         if (countdown.value == 0) {
           t.cancel();
         } else {
@@ -45,78 +45,160 @@ class ForgotPasswordScreen extends HookConsumerWidget {
 
     return Scaffold(
       backgroundColor: const Color(0xFF0D0D0D),
-      appBar: AppBar(backgroundColor: Colors.transparent, elevation: 0),
-      body: Padding(
-        padding: const EdgeInsets.all(24),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text(
-              "Lupa Kata Sandi",
-              style: TextStyle(
-                fontSize: 28,
-                fontWeight: FontWeight.bold,
-                color: Colors.white,
+      body: Stack(
+        children: [
+          Positioned(
+            top: -100,
+            left: -50,
+            child: Container(
+              width: 300,
+              height: 300,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: const Color(0xFF1A237E).withOpacity(0.3),
               ),
             ),
-            const SizedBox(height: 8),
-            const Text(
-              "Masukkan email untuk menerima kode OTP",
-              style: TextStyle(color: Colors.grey),
-            ),
-            const SizedBox(height: 32),
-            TextField(
-              controller: emailController,
-              style: const TextStyle(color: Colors.white),
-              decoration: InputDecoration(
-                filled: true,
-                fillColor: const Color(0xFF1E1E1E),
-                hintText: "Email",
-                hintStyle: const TextStyle(color: Colors.white38),
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                  borderSide: BorderSide.none,
-                ),
-                prefixIcon: const Icon(
-                  Icons.email_outlined,
-                  color: Colors.white54,
-                ),
+          ),
+          Positioned(
+            bottom: -50,
+            right: -50,
+            child: Container(
+              width: 250,
+              height: 250,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: const Color(0xFF1A237E).withOpacity(0.15),
               ),
             ),
-            const SizedBox(height: 24),
-            SizedBox(
-              width: double.infinity,
-              height: 55,
-              child: ElevatedButton(
-                onPressed: (state is AsyncLoading || countdown.value > 0)
-                    ? null
-                    : () {
-                        ref
-                            .read(authProvider.notifier)
-                            .forgotPassword(emailController.text.trim());
-                        startTimer();
-                      },
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF3F7AF6),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                ),
-                child: state is AsyncLoading
-                    ? const CircularProgressIndicator(color: Colors.white)
-                    : Text(
-                        countdown.value > 0
-                            ? "Tunggu ${countdown.value}s"
-                            : "Kirim Kode OTP",
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontWeight: FontWeight.bold,
-                        ),
+          ),
+          SafeArea(
+            child: LayoutBuilder(
+              builder: (context, constraints) {
+                return SingleChildScrollView(
+                  physics: const ClampingScrollPhysics(),
+                  child: ConstrainedBox(
+                    constraints: BoxConstraints(
+                      minHeight: constraints.maxHeight,
+                    ),
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 24),
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          AnimatedContainer(
+                            duration: const Duration(milliseconds: 400),
+                            curve: Curves.easeInOutCubic,
+                            height: isKeyboardVisible ? 20 : 0,
+                          ),
+                          Container(
+                            width: double.infinity,
+                            padding: const EdgeInsets.all(24),
+                            decoration: BoxDecoration(
+                              color: Colors.white.withOpacity(0.06),
+                              borderRadius: BorderRadius.circular(30),
+                              border: Border.all(
+                                color: Colors.white.withOpacity(0.05),
+                              ),
+                            ),
+                            child: Column(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                const Text(
+                                  "Lupa Kata Sandi",
+                                  style: TextStyle(
+                                    fontSize: 28,
+                                    fontWeight: FontWeight.bold,
+                                    color: Colors.white,
+                                  ),
+                                ),
+                                const SizedBox(height: 12),
+                                const Text(
+                                  "Masukkan email untuk menerima kode OTP",
+                                  textAlign: TextAlign.center,
+                                  style: TextStyle(
+                                    color: Colors.white70,
+                                    fontSize: 14,
+                                  ),
+                                ),
+                                const SizedBox(height: 32),
+                                TextField(
+                                  controller: emailController,
+                                  style: const TextStyle(color: Colors.white),
+                                  decoration: InputDecoration(
+                                    filled: true,
+                                    fillColor: Colors.white.withOpacity(0.05),
+                                    hintText: "Email",
+                                    hintStyle: const TextStyle(
+                                      color: Colors.white38,
+                                    ),
+                                    border: OutlineInputBorder(
+                                      borderRadius: BorderRadius.circular(12),
+                                      borderSide: BorderSide.none,
+                                    ),
+                                    prefixIcon: const Icon(
+                                      Icons.email_outlined,
+                                      color: Colors.white54,
+                                    ),
+                                  ),
+                                ),
+                                const SizedBox(height: 24),
+                                SizedBox(
+                                  width: double.infinity,
+                                  height: 55,
+                                  child: ElevatedButton(
+                                    onPressed:
+                                        (state is AsyncLoading ||
+                                            countdown.value > 0)
+                                        ? null
+                                        : () {
+                                            ref
+                                                .read(authProvider.notifier)
+                                                .forgotPassword(
+                                                  emailController.text.trim(),
+                                                );
+                                            startTimer();
+                                          },
+                                    style: ElevatedButton.styleFrom(
+                                      backgroundColor: const Color(0xFF3F7AF6),
+                                      disabledBackgroundColor: const Color(
+                                        0xFF3F7AF6,
+                                      ).withOpacity(0.5),
+                                      shape: RoundedRectangleBorder(
+                                        borderRadius: BorderRadius.circular(12),
+                                      ),
+                                    ),
+                                    child: state is AsyncLoading
+                                        ? const SizedBox(
+                                            height: 20,
+                                            width: 20,
+                                            child: CircularProgressIndicator(
+                                              color: Colors.white,
+                                              strokeWidth: 2,
+                                            ),
+                                          )
+                                        : Text(
+                                            countdown.value > 0
+                                                ? "Tunggu ${countdown.value}s"
+                                                : "Kirim Kode OTP",
+                                            style: const TextStyle(
+                                              color: Colors.white,
+                                              fontWeight: FontWeight.bold,
+                                            ),
+                                          ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
                       ),
-              ),
+                    ),
+                  ),
+                );
+              },
             ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }

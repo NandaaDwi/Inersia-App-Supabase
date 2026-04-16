@@ -54,12 +54,6 @@ class AuthErrorHandler {
       return 'Email ini sudah terdaftar. Silakan masuk atau gunakan email lain.';
     }
 
-    if (msg.contains('password should be') ||
-        msg.contains('password_too_short') ||
-        msg.contains('weak_password')) {
-      return 'Kata sandi terlalu lemah. Gunakan minimal 8 karakter dengan kombinasi huruf dan angka.';
-    }
-
     if (msg.contains('invalid email') ||
         msg.contains('email_invalid') ||
         msg.contains('unable to validate email')) {
