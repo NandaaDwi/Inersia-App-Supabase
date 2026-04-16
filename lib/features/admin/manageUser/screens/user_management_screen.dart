@@ -6,7 +6,6 @@ import 'package:inersia_supabase/features/admin/manageUser/widgets/admin_user_ca
 import 'package:inersia_supabase/features/admin/manageUser/widgets/admin_user_search_bar.dart';
 import 'package:inersia_supabase/features/admin/manageUser/widgets/admin_user_pagination.dart';
 
-/// Layar manajemen pengguna — konsisten dengan tema gelap app.
 class UserManagementScreen extends HookConsumerWidget {
   const UserManagementScreen({super.key});
 

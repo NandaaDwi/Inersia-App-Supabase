@@ -74,10 +74,10 @@ class LoginScreen extends StatelessWidget {
 
                           AnimatedContainer(
                             duration: const Duration(milliseconds: 300),
-                            height: isKeyboardVisible ? 120 : 250,
+                            height: isKeyboardVisible ? 120 : 300,
                             margin: const EdgeInsets.symmetric(vertical: 20),
                             child: Image.asset(
-                              'assets/images/logo_inersia.png',
+                              'assets/images/logo_inersia2.png',
                               fit: BoxFit.contain,
                             ),
                           ),

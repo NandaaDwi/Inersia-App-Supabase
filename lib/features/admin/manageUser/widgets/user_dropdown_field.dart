@@ -35,7 +35,7 @@ class UserDropdownField extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16),
       decoration: BoxDecoration(
-        color: const Color(0xFF1E1E1E),
+        color: const Color(0xFF111827),
         borderRadius: BorderRadius.circular(15),
         border: Border.all(color: Colors.white10),
       ),

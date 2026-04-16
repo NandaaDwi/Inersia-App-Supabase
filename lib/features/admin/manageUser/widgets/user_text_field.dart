@@ -20,7 +20,7 @@ class UserTextField extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       decoration: BoxDecoration(
-        color: enabled ? const Color(0xFF1E1E1E) : const Color(0xFF2C2C2C),
+        color: enabled ? const Color(0xFF111827) : const Color(0xFF1F2937),
         borderRadius: BorderRadius.circular(15),
       ),
       child: TextField(

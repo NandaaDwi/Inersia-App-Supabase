@@ -26,33 +26,28 @@ class NotificationCard extends ConsumerWidget {
               .markNotificationRead(notif.id);
         }
       },
-      borderRadius: BorderRadius.circular(16),
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 200),
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
         decoration: BoxDecoration(
           color: notif.isRead
-              ? const Color(0xFF111827)
-              : const Color(0xFF1E3A5F).withOpacity(0.2),
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(
-            color: notif.isRead
-                ? Colors.white.withOpacity(0.05)
-                : const Color(0xFF3F7AF6).withOpacity(0.3),
-            width: 1,
+              ? Colors.transparent
+              : const Color(0xFF3F7AF6).withOpacity(0.05),
+          border: Border(
+            bottom: BorderSide(color: Colors.white.withOpacity(0.05), width: 1),
           ),
         ),
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Container(
-              width: 44,
-              height: 44,
+              width: 40,
+              height: 40,
               decoration: BoxDecoration(
                 color: typeInfo.color.withOpacity(0.1),
-                borderRadius: BorderRadius.circular(12),
+                shape: BoxShape.circle,
               ),
-              child: Icon(typeInfo.icon, color: typeInfo.color, size: 22),
+              child: Icon(typeInfo.icon, color: typeInfo.color, size: 20),
             ),
             const SizedBox(width: 14),
             Expanded(
@@ -66,10 +61,10 @@ class NotificationCard extends ConsumerWidget {
                         child: Text(
                           typeInfo.label,
                           style: TextStyle(
-                            color: Colors.white,
+                            color: Colors.white.withOpacity(0.9),
                             fontWeight: notif.isRead
-                                ? FontWeight.w500
-                                : FontWeight.w700,
+                                ? FontWeight.w400
+                                : FontWeight.w600,
                             fontSize: 14,
                             height: 1.3,
                           ),
@@ -78,8 +73,8 @@ class NotificationCard extends ConsumerWidget {
                       if (!notif.isRead)
                         Container(
                           margin: const EdgeInsets.only(top: 4, left: 8),
-                          width: 8,
-                          height: 8,
+                          width: 7,
+                          height: 7,
                           decoration: const BoxDecoration(
                             color: Color(0xFF3F7AF6),
                             shape: BoxShape.circle,
@@ -87,13 +82,12 @@ class NotificationCard extends ConsumerWidget {
                         ),
                     ],
                   ),
-                  const SizedBox(height: 6),
+                  const SizedBox(height: 4),
                   Text(
                     AppDateUtils.timeAgo(notif.createdAt),
                     style: TextStyle(
-                      color: Colors.white.withOpacity(0.4),
+                      color: Colors.white.withOpacity(0.3),
                       fontSize: 11,
-                      fontWeight: FontWeight.w500,
                     ),
                   ),
                 ],

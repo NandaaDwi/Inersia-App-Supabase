@@ -16,7 +16,6 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
   late final AnimationController _animCtrl;
   late final Animation<double> _fadeAnim;
   late final Animation<double> _scaleAnim;
-
   bool _navigated = false;
 
   @override
@@ -30,18 +29,17 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
 
     _fadeAnim = CurvedAnimation(
       parent: _animCtrl,
-      curve: const Interval(0.0, 0.6, curve: Curves.easeOut),
+      curve: const Interval(0.0, 0.6, curve: Curves.easeIn),
     );
 
-    _scaleAnim = Tween<double>(begin: 0.85, end: 1.0).animate(
+    _scaleAnim = Tween<double>(begin: 0.8, end: 1.0).animate(
       CurvedAnimation(
         parent: _animCtrl,
-        curve: const Interval(0.0, 0.6, curve: Curves.easeOutBack),
+        curve: Interval(0.0, 0.6, curve: Curves.easeOutBack),
       ),
     );
 
     _animCtrl.forward();
-
     _scheduleNavigation();
   }
 
@@ -50,24 +48,30 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
 
     if (!mounted || _navigated) return;
 
+    final session = supabaseConfig.client.auth.currentSession;
+
+    if (session == null) {
+      _navigateTo('/login');
+      return;
+    }
+
     final deadline = DateTime.now().add(const Duration(seconds: 3));
     while (DateTime.now().isBefore(deadline)) {
-      final authAsync = ref.read(authStateProvider);
       final roleAsync = ref.read(userRoleProvider);
-      if (!authAsync.isLoading && !roleAsync.isLoading) break;
+      if (!roleAsync.isLoading) break;
       await Future.delayed(const Duration(milliseconds: 100));
     }
 
     if (!mounted || _navigated) return;
-    _navigated = true;
 
-    final session = supabaseConfig.client.auth.currentSession;
-    if (session == null) {
-      context.go('/login');
-    } else {
-      final role = ref.read(userRoleProvider).asData?.value;
-      context.go(role == 'admin' ? '/admin' : '/');
-    }
+    final role = ref.read(userRoleProvider).asData?.value;
+    _navigateTo(role == 'admin' ? '/admin' : '/');
+  }
+
+  void _navigateTo(String location) {
+    if (_navigated || !mounted) return;
+    _navigated = true;
+    context.go(location);
   }
 
   @override
@@ -88,73 +92,41 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                Container(
-                  width: 80,
-                  height: 80,
-                  decoration: BoxDecoration(
-                    color: const Color(0xFF2563EB),
-                    borderRadius: BorderRadius.circular(20),
-                    boxShadow: [
-                      BoxShadow(
-                        color: const Color(0xFF2563EB).withOpacity(0.4),
-                        blurRadius: 24,
-                        spreadRadius: 2,
-                      ),
-                    ],
-                  ),
-                  child: const Center(
-                    child: Text(
-                      'I',
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 42,
-                        fontWeight: FontWeight.w900,
-                        letterSpacing: -2,
-                      ),
-                    ),
-                  ),
+                Image.asset(
+                  'assets/images/logo_inersia2.png',
+                  width: 300,
+                  height: 300,
                 ),
-                const SizedBox(height: 20),
-                RichText(
-                  text: const TextSpan(
-                    children: [
-                      TextSpan(
-                        text: 'Inersia',
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontSize: 32,
-                          fontWeight: FontWeight.w800,
-                          letterSpacing: -1,
-                        ),
-                      ),
-                      TextSpan(
-                        text: '.',
-                        style: TextStyle(
-                          color: Color(0xFF2563EB),
-                          fontSize: 38,
-                          fontWeight: FontWeight.w900,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(height: 8),
+                const SizedBox(height: 16),
                 const Text(
-                  'Berbagi cerita, menginspirasi dunia',
+                  'Inersia',
                   style: TextStyle(
-                    color: Color(0xFF6B7280),
-                    fontSize: 13,
-                    letterSpacing: 0.2,
+                    color: Colors.white,
+                    fontSize: 36,
+                    fontWeight: FontWeight.w900,
+                    letterSpacing: -0.5,
                   ),
                 ),
-                const SizedBox(height: 48),
-                SizedBox(
+                const SizedBox(height: 12),
+                const Text(
+                  'Where your ideas find their voice',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    color: Color(0xFF9CA3AF),
+                    fontSize: 15,
+                    fontWeight: FontWeight.w400,
+                    fontStyle: FontStyle.italic,
+                    letterSpacing: 0.5,
+                  ),
+                ),
+                const SizedBox(height: 60),
+                const SizedBox(
                   width: 24,
                   height: 24,
                   child: CircularProgressIndicator(
-                    strokeWidth: 2.5,
+                    strokeWidth: 2,
                     valueColor: AlwaysStoppedAnimation<Color>(
-                      const Color(0xFF2563EB).withOpacity(0.6),
+                      Color(0xFF3B82F6),
                     ),
                   ),
                 ),

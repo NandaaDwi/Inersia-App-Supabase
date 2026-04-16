@@ -36,23 +36,32 @@ class AdminNotificationScreen extends ConsumerWidget {
           ),
         ),
         actions: [
-          if (adminId.isNotEmpty)
-            Padding(
-              padding: const EdgeInsets.only(right: 8),
-              child: TextButton(
+          notifsAsync.when(
+            data: (notifications) {
+              final hasUnread = notifications.any((n) => !n.isRead);
+              if (!hasUnread || adminId.isEmpty) return const SizedBox.shrink();
+              return TextButton(
                 onPressed: () => ref
                     .read(adminDashboardServiceProvider)
                     .markAllNotificationsRead(adminId),
-                style: TextButton.styleFrom(
-                  foregroundColor: const Color(0xFF60A5FA),
-                ),
                 child: const Text(
                   'Tandai Semua',
-                  style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
+                  style: TextStyle(
+                    color: Color(0xFF60A5FA),
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                  ),
                 ),
-              ),
-            ),
+              );
+            },
+            loading: () => const SizedBox.shrink(),
+            error: (_, __) => const SizedBox.shrink(),
+          ),
         ],
+        bottom: PreferredSize(
+          preferredSize: const Size.fromHeight(0.5),
+          child: Container(height: 0.5, color: Colors.white.withOpacity(0.05)),
+        ),
       ),
       body: notifsAsync.when(
         data: (notifs) => notifs.isEmpty
@@ -85,7 +94,7 @@ class _EmptyNotifView extends StatelessWidget {
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
           Icon(
-            Icons.notifications_off_outlined,
+            Icons.notifications_none_rounded,
             color: Color(0xFF1F2937),
             size: 64,
           ),
@@ -98,6 +107,7 @@ class _EmptyNotifView extends StatelessWidget {
               fontWeight: FontWeight.w600,
             ),
           ),
+          SizedBox(height: 8),
           Text(
             'Kami akan mengabari Anda jika ada pembaruan.',
             style: TextStyle(color: Color(0xFF6B7280), fontSize: 13),

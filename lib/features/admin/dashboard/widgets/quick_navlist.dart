@@ -83,7 +83,6 @@ class _NavTile extends StatelessWidget {
   }
 }
 
-// --- LogoutButton ---
 class LogoutButton extends ConsumerWidget {
   const LogoutButton({super.key});
 
@@ -123,14 +122,14 @@ class LogoutButton extends ConsumerWidget {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx),
-            child: const Text('Batal'),
+            child: const Text('Batal', style: TextStyle(color: Colors.white)),
           ),
           ElevatedButton(
             onPressed: () => ref.read(authProvider.notifier).logout(),
             style: ElevatedButton.styleFrom(
               backgroundColor: const Color(0xFFEF4444),
             ),
-            child: const Text('Logout'),
+            child: const Text('Logout', style: TextStyle(color: Colors.white)),
           ),
         ],
       ),

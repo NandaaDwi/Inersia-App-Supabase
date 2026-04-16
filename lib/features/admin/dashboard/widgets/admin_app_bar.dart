@@ -18,24 +18,9 @@ class AdminAppBar extends ConsumerWidget implements PreferredSizeWidget {
       elevation: 0,
       title: Row(
         children: [
-          Container(
-            width: 30,
-            height: 30,
-            decoration: BoxDecoration(
-              gradient: const LinearGradient(
-                colors: [Color(0xFF3F7AF6), Color(0xFF7C3AED)],
-              ),
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: const Icon(
-              Icons.shield_outlined,
-              color: Colors.white,
-              size: 16,
-            ),
-          ),
           const SizedBox(width: 10),
           const Text(
-            'Admin Panel',
+            'Dashboard Admin',
             style: TextStyle(
               color: Colors.white,
               fontWeight: FontWeight.w700,

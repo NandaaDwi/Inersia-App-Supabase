@@ -49,20 +49,11 @@ final routerProvider = Provider<GoRouter>((ref) {
     refreshListenable: notifier,
     redirect: (context, state) {
       final location = state.matchedLocation;
-      final authState = ref.read(authStateProvider);
       final roleAsync = ref.read(userRoleProvider);
-
       final session = supabaseConfig.client.auth.currentSession;
       final isAuthenticated = session != null;
 
-      if (location == '/splash') {
-        if (authState.isLoading || roleAsync.isLoading) return null;
-
-        if (!isAuthenticated) return '/login';
-
-        final role = roleAsync.asData?.value;
-        return (role == 'admin') ? '/admin' : '/';
-      }
+      if (location == '/splash') return null;
 
       final isAuthRoute =
           location == '/login' ||
@@ -105,7 +96,8 @@ final routerProvider = Provider<GoRouter>((ref) {
     routes: [
       GoRoute(
         path: '/splash',
-        builder: (context, state) => const SplashScreen(),
+        pageBuilder: (context, state) =>
+            _buildPage(state: state, child: const SplashScreen()),
       ),
       GoRoute(
         path: '/login',

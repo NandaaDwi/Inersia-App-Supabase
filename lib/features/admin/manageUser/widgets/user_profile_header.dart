@@ -13,7 +13,7 @@ class UserProfileHeader extends StatelessWidget {
       padding: const EdgeInsets.all(24),
       width: double.infinity,
       decoration: const BoxDecoration(
-        color: Color(0xFF161616),
+        color: Color(0xFF111827),
         borderRadius: BorderRadius.only(
           bottomLeft: Radius.circular(30),
           bottomRight: Radius.circular(30),

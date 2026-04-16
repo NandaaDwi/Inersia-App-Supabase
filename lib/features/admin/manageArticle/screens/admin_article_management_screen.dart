@@ -21,6 +21,14 @@ class AdminArticleManagementScreen extends ConsumerWidget {
         backgroundColor: const Color(0xFF0D0D0D),
         elevation: 0,
         automaticallyImplyLeading: false,
+        leading: IconButton(
+          icon: const Icon(
+            Icons.arrow_back_ios_new,
+            color: Colors.white,
+            size: 18,
+          ),
+          onPressed: () => Navigator.pop(context),
+        ),
         title: const Text(
           'Manajemen Artikel',
           style: TextStyle(
@@ -117,7 +125,6 @@ class AdminArticleManagementScreen extends ConsumerWidget {
     );
   }
 }
-
 
 class _ArticleCard extends ConsumerWidget {
   final ArticleModel article;
@@ -562,7 +569,6 @@ class _ArticleCard extends ConsumerWidget {
   );
 }
 
-
 class _Btn extends StatelessWidget {
   final String label;
   final IconData icon;
@@ -610,7 +616,6 @@ class _Btn extends StatelessWidget {
     ),
   );
 }
-
 
 class _ConfirmDialog extends StatelessWidget {
   final String title;
@@ -871,7 +876,6 @@ class _InputDialog extends StatelessWidget {
     ),
   );
 }
-
 
 class _EmptyState extends StatelessWidget {
   const _EmptyState();

@@ -15,9 +15,10 @@ class NotificationList extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return ListView.separated(
-      padding: const EdgeInsets.fromLTRB(16, 12, 16, 40),
+      padding: const EdgeInsets.symmetric(vertical: 8),
       itemCount: notifications.length,
-      separatorBuilder: (_, __) => const SizedBox(height: 10),
+      separatorBuilder: (_, __) =>
+          Divider(color: Colors.white.withOpacity(0.05), height: 1),
       itemBuilder: (_, i) =>
           NotificationCard(notif: notifications[i], adminId: adminId),
     );

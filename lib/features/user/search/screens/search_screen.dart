@@ -42,20 +42,12 @@ class SearchScreen extends HookConsumerWidget {
           text: const TextSpan(
             children: [
               TextSpan(
-                text: 'Inersia',
+                text: 'Pencarian',
                 style: TextStyle(
                   color: Colors.white,
                   fontSize: 22,
                   fontWeight: FontWeight.w800,
                   letterSpacing: -0.5,
-                ),
-              ),
-              TextSpan(
-                text: '.',
-                style: TextStyle(
-                  color: Color(0xFF2563EB),
-                  fontSize: 26,
-                  fontWeight: FontWeight.w900,
                 ),
               ),
             ],
