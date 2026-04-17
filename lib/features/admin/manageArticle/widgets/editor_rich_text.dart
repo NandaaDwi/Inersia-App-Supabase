@@ -29,9 +29,7 @@ class EditorRichText extends StatelessWidget {
         ),
         const SizedBox(height: 8),
 
-        // ── Area tulis ──────────────────────────────────────
         Container(
-          // Minimum 360px — nyaman untuk menulis artikel
           constraints: const BoxConstraints(minHeight: 360),
           padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
@@ -191,13 +189,11 @@ class QuillKeyboardToolbar extends StatelessWidget {
             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
             child: Row(
               children: [
-                // ── Heading ─────────────────────────────────
                 _H(c: controller, level: 1, label: 'H1'),
                 _H(c: controller, level: 2, label: 'H2'),
                 _H(c: controller, level: 3, label: 'H3'),
                 _Div(),
 
-                // ── Format teks ─────────────────────────────
                 _T(
                   c: controller,
                   attr: quill.Attribute.bold,
@@ -220,7 +216,6 @@ class QuillKeyboardToolbar extends StatelessWidget {
                 ),
                 _Div(),
 
-                // ── List ─────────────────────────────────────
                 _T(
                   c: controller,
                   attr: quill.Attribute.ul,
@@ -233,7 +228,6 @@ class QuillKeyboardToolbar extends StatelessWidget {
                 ),
                 _Div(),
 
-                // ── Blockquote & Code ────────────────────────
                 _T(
                   c: controller,
                   attr: quill.Attribute.blockQuote,
@@ -246,7 +240,6 @@ class QuillKeyboardToolbar extends StatelessWidget {
                 ),
                 _Div(),
 
-                // ── Alignment — termasuk justify ─────────────
                 _A(
                   c: controller,
                   align: quill.Attribute.leftAlignment,
@@ -269,7 +262,6 @@ class QuillKeyboardToolbar extends StatelessWidget {
                 ),
                 _Div(),
 
-                // ── Indent ───────────────────────────────────
                 _I(
                   icon: Icons.format_indent_decrease_rounded,
                   onTap: () => controller.indentSelection(false),
@@ -280,7 +272,6 @@ class QuillKeyboardToolbar extends StatelessWidget {
                 ),
                 _Div(),
 
-                // ── Undo / Redo ──────────────────────────────
                 _I(
                   icon: Icons.undo_rounded,
                   onTap: () {
@@ -295,7 +286,6 @@ class QuillKeyboardToolbar extends StatelessWidget {
                 ),
                 _Div(),
 
-                // ── Clear format ─────────────────────────────
                 _I(
                   icon: Icons.format_clear_rounded,
                   onTap: () {
@@ -320,7 +310,6 @@ class QuillKeyboardToolbar extends StatelessWidget {
   }
 }
 
-// ── Toolbar widget helpers ────────────────────────────────────
 
 class _Div extends StatelessWidget {
   @override
@@ -385,7 +374,6 @@ class _T extends StatelessWidget {
     return _Btn(
       active: active,
       onTap: () {
-        // Toggle attribute
         c.formatSelection(active ? quill.Attribute.clone(attr, null) : attr);
       },
       child: Icon(

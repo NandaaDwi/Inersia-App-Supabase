@@ -425,19 +425,22 @@ class _LogoutButton extends ConsumerWidget {
             width: 0.5,
           ),
         ),
-        child: const Row(
-          children: [
-            Icon(Icons.logout_rounded, color: Color(0xFFEF4444), size: 20),
-            SizedBox(width: 14),
-            Text(
-              'Keluar',
-              style: TextStyle(
-                color: Color(0xFFEF4444),
-                fontWeight: FontWeight.w600,
-                fontSize: 15,
+        child: Center(
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(Icons.logout_rounded, color: Color(0xFFEF4444), size: 20),
+              SizedBox(width: 14),
+              Text(
+                'Keluar',
+                style: TextStyle(
+                  color: Color(0xFFEF4444),
+                  fontWeight: FontWeight.w600,
+                  fontSize: 15,
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );

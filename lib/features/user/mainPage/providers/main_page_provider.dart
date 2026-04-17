@@ -139,19 +139,22 @@ final articleCommentCountStreamProvider = StreamProvider.family<int, String>((
       });
 });
 
-final cardLikeStatusProvider = FutureProvider.family<bool, (String, String)>((
+final cardLikeStatusProvider = StreamProvider.family<bool, (String, String)>((
   ref,
   args,
-) async {
+) {
   final articleId = args.$1;
   final userId = args.$2;
-  if (userId.isEmpty) return false;
 
-  final res = await supabaseConfig.client
-      .from('likes')
-      .select('article_id')
-      .eq('article_id', articleId)
-      .eq('user_id', userId)
-      .maybeSingle();
-  return res != null;
+  if (userId.isEmpty) {
+    return Stream.value(false);
+  }
+
+  return supabaseConfig.client.from('likes').stream(primaryKey: ['id']).map((
+    rows,
+  ) {
+    return rows.any(
+      (e) => e['article_id'] == articleId && e['user_id'] == userId,
+    );
+  });
 });

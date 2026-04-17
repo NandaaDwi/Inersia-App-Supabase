@@ -106,6 +106,7 @@ class ReadPageService {
     bool currentlyBookmarked,
   ) async {
     final uid = _uid!;
+
     if (currentlyBookmarked) {
       await _client
           .from('reading_list')
@@ -113,6 +114,18 @@ class ReadPageService {
           .eq('article_id', articleId)
           .eq('user_id', uid);
     } else {
+      final article = await _client
+          .from('articles')
+          .select('author_id')
+          .eq('id', articleId)
+          .single();
+
+      if (article['author_id'] == uid) {
+        throw Exception(
+          'Anda tidak dapat menyimpan artikel sendiri ke daftar baca.',
+        );
+      }
+
       await _client.from('reading_list').insert({
         'article_id': articleId,
         'user_id': uid,

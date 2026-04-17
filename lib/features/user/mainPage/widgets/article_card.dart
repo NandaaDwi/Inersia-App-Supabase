@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
 import 'package:inersia_supabase/config/supabase_config.dart';
 import 'package:inersia_supabase/features/user/mainPage/providers/main_page_provider.dart';
+import 'package:inersia_supabase/features/user/mainPage/providers/read_page_provider.dart';
 import 'package:inersia_supabase/models/article_model.dart';
 import 'package:inersia_supabase/utils/dateUtills.dart';
 
@@ -26,7 +27,7 @@ class ArticleCard extends ConsumerWidget {
     );
 
     final likeStatusAsync = ref.watch(
-      cardLikeStatusProvider((article.id, currentUserId)),
+      likeProvider((article.id, currentUserId)),
     );
 
     final likeCount = likeCountAsync.when(
@@ -42,7 +43,8 @@ class ArticleCard extends ConsumerWidget {
     );
 
     final isLiked = likeStatusAsync.when(
-      data: (v) => v,
+      data: (v) =>
+          v.isLiked, 
       loading: () => false,
       error: (_, __) => false,
     );
