@@ -166,6 +166,15 @@ class ReadPageService {
     return CommentModel.fromJson(res);
   }
 
+  Future<void> deleteComment(String commentId, String articleId) async {
+    await _client
+        .from('comments')
+        .delete()
+        .eq('id', commentId)
+        .eq('user_id', _uid!);
+    _syncCommentCount(articleId);
+  }
+
   Future<void> _syncCommentCount(String articleId) async {
     try {
       final res = await _client

@@ -1,20 +1,34 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
+import 'package:hooks_riverpod/hooks_riverpod.dart';
+import 'package:inersia_supabase/config/supabase_config.dart';
+import 'package:inersia_supabase/features/user/mainPage/providers/main_page_provider.dart';
 import 'package:inersia_supabase/models/article_model.dart';
 import 'package:inersia_supabase/utils/dateUtills.dart';
 
-class BookmarkCardWidget extends StatelessWidget {
+class BookmarkCard extends ConsumerWidget {
   final ArticleModel article;
-  final VoidCallback onTap;
   final VoidCallback onRemove;
 
-  const BookmarkCardWidget({
+  const BookmarkCard({
+    super.key,
     required this.article,
-    required this.onTap,
     required this.onRemove,
   });
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final uid = supabaseConfig.client.auth.currentUser?.id ?? '';
+    final likeKey = (article.id, uid);
+
+    final isLiked = ref
+        .watch(cardLikeStatusProvider(likeKey))
+        .maybeWhen(data: (value) => value, orElse: () => false);
+
+    final likeCount = ref
+        .watch(articleLikeCountStreamProvider(article.id))
+        .maybeWhen(data: (value) => value, orElse: () => article.likeCount);
+
     return Dismissible(
       key: ValueKey(article.id),
       direction: DismissDirection.endToStart,
@@ -54,17 +68,20 @@ class BookmarkCardWidget extends StatelessWidget {
         return false;
       },
       child: GestureDetector(
-        onTap: onTap,
+        onTap: () {
+          ref.invalidate(cardLikeStatusProvider(likeKey));
+          context.push('/article/${article.id}', extra: article);
+        },
         child: Container(
           decoration: BoxDecoration(
             color: const Color(0xFF161616),
             borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: const Color(0xFF1F2937), width: 0.5),
+            border: Border.all(color: const Color(0xFF161616), width: 0.5),
           ),
           clipBehavior: Clip.hardEdge,
           child: Row(
             children: [
-              ThumbnailWidget(url: article.thumbnail),
+              _BookmarkThumbnail(url: article.thumbnail),
               const SizedBox(width: 12),
               Expanded(
                 child: Padding(
@@ -76,25 +93,8 @@ class BookmarkCardWidget extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       if (article.categoryName != null)
-                        Container(
-                          margin: const EdgeInsets.only(bottom: 6),
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 8,
-                            vertical: 3,
-                          ),
-                          decoration: BoxDecoration(
-                            color: const Color(0xFF1E3A5F),
-                            borderRadius: BorderRadius.circular(6),
-                          ),
-                          child: Text(
-                            article.categoryName!,
-                            style: const TextStyle(
-                              color: Color(0xFF60A5FA),
-                              fontSize: 10,
-                              fontWeight: FontWeight.w500,
-                            ),
-                          ),
-                        ),
+                        _CategoryBadge(name: article.categoryName!),
+
                       Text(
                         article.title,
                         style: const TextStyle(
@@ -107,6 +107,7 @@ class BookmarkCardWidget extends StatelessWidget {
                         overflow: TextOverflow.ellipsis,
                       ),
                       const SizedBox(height: 8),
+
                       Row(
                         children: [
                           const Icon(
@@ -129,6 +130,7 @@ class BookmarkCardWidget extends StatelessWidget {
                         ],
                       ),
                       const SizedBox(height: 4),
+
                       Row(
                         children: [
                           const Icon(
@@ -161,18 +163,27 @@ class BookmarkCardWidget extends StatelessWidget {
                         ],
                       ),
                       const SizedBox(height: 8),
+
                       Row(
                         children: [
-                          const Icon(
-                            Icons.favorite_border,
-                            color: Color(0xFF6B7280),
-                            size: 13,
+                          AnimatedSwitcher(
+                            duration: const Duration(milliseconds: 200),
+                            child: Icon(
+                              key: ValueKey(isLiked),
+                              isLiked ? Icons.favorite : Icons.favorite_border,
+                              color: isLiked
+                                  ? const Color(0xFFEF4444)
+                                  : const Color(0xFF6B7280),
+                              size: 13,
+                            ),
                           ),
                           const SizedBox(width: 4),
                           Text(
-                            '${article.likeCount}',
-                            style: const TextStyle(
-                              color: Color(0xFF6B7280),
+                            '$likeCount',
+                            style: TextStyle(
+                              color: isLiked
+                                  ? const Color(0xFFEF4444)
+                                  : const Color(0xFF6B7280),
                               fontSize: 12,
                             ),
                           ),
@@ -211,30 +222,51 @@ class BookmarkCardWidget extends StatelessWidget {
   }
 }
 
-class ThumbnailWidget extends StatelessWidget {
+class _BookmarkThumbnail extends StatelessWidget {
   final String? url;
-  const ThumbnailWidget({this.url});
+  const _BookmarkThumbnail({this.url});
 
   @override
-  Widget build(BuildContext context) {
-    return ClipRRect(
-      borderRadius: const BorderRadius.horizontal(left: Radius.circular(16)),
-      child: url != null
-          ? Image.network(
-              url!,
-              width: 100,
-              height: 120,
-              fit: BoxFit.cover,
-              errorBuilder: (_, __, ___) => _placeholder(),
-            )
-          : _placeholder(),
-    );
-  }
+  Widget build(BuildContext context) => ClipRRect(
+    borderRadius: const BorderRadius.horizontal(left: Radius.circular(16)),
+    child: url != null
+        ? Image.network(
+            url!,
+            width: 100,
+            height: 120,
+            fit: BoxFit.cover,
+            errorBuilder: (_, __, ___) => _placeholder(),
+          )
+        : _placeholder(),
+  );
 
   Widget _placeholder() => Container(
     width: 100,
     height: 120,
-    color: const Color(0xFF1F2937),
+    color: const Color(0xFF161616),
     child: const Icon(Icons.image_outlined, color: Color(0xFF374151), size: 28),
+  );
+}
+
+class _CategoryBadge extends StatelessWidget {
+  final String name;
+  const _CategoryBadge({required this.name});
+
+  @override
+  Widget build(BuildContext context) => Container(
+    margin: const EdgeInsets.only(bottom: 6),
+    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+    decoration: BoxDecoration(
+      color: const Color(0xFF1E3A5F),
+      borderRadius: BorderRadius.circular(6),
+    ),
+    child: Text(
+      name,
+      style: const TextStyle(
+        color: Color(0xFF60A5FA),
+        fontSize: 10,
+        fontWeight: FontWeight.w500,
+      ),
+    ),
   );
 }

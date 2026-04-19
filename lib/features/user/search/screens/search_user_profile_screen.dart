@@ -3,7 +3,7 @@ import 'package:go_router/go_router.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
 import 'package:inersia_supabase/config/supabase_config.dart';
 import 'package:inersia_supabase/features/user/mainPage/providers/read_page_provider.dart';
-import 'package:inersia_supabase/features/user/search/services/search_user_profile_provider.dart';
+import 'package:inersia_supabase/features/user/search/providers/search_user_profile_provider.dart';
 import 'package:inersia_supabase/models/article_model.dart';
 import 'package:inersia_supabase/utils/dateUtills.dart';
 

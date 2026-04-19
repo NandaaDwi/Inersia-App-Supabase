@@ -150,11 +150,12 @@ final cardLikeStatusProvider = StreamProvider.family<bool, (String, String)>((
     return Stream.value(false);
   }
 
-  return supabaseConfig.client.from('likes').stream(primaryKey: ['id']).map((
-    rows,
-  ) {
-    return rows.any(
-      (e) => e['article_id'] == articleId && e['user_id'] == userId,
-    );
-  });
+  return supabaseConfig.client
+      .from('likes')
+      .stream(primaryKey: ['user_id', 'article_id'])
+      .map((rows) {
+        return rows.any(
+          (e) => e['article_id'] == articleId && e['user_id'] == userId,
+        );
+      });
 });

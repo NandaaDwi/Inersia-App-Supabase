@@ -8,17 +8,20 @@ class ReadCommentItem extends StatelessWidget {
   final CommentModel comment;
   final String currentUserId;
   final VoidCallback onReport;
+  final VoidCallback onDelete;
 
   const ReadCommentItem({
     super.key,
     required this.comment,
     required this.currentUserId,
     required this.onReport,
+    required this.onDelete,
   });
 
   @override
   Widget build(BuildContext context) {
     final text = ModerationClient.censorCommentSync(comment.commentText);
+    final bool isMyComment = comment.userId == currentUserId;
 
     return Padding(
       padding: const EdgeInsets.only(bottom: 16),
@@ -67,7 +70,31 @@ class ReadCommentItem extends StatelessWidget {
                       ),
                     ),
                     const Spacer(),
-                    if (comment.userId != currentUserId)
+                    if (isMyComment)
+                      PopupMenuButton<String>(
+                        icon: const Icon(
+                          Icons.more_horiz,
+                          color: Color(0xFF4B5563),
+                          size: 18,
+                        ),
+                        color: const Color(0xFF1F2937),
+                        onSelected: (val) {
+                          if (val == 'delete') onDelete();
+                        },
+                        itemBuilder: (context) => [
+                          const PopupMenuItem(
+                            value: 'delete',
+                            child: Text(
+                              'Hapus Komentar',
+                              style: TextStyle(
+                                color: Colors.redAccent,
+                                fontSize: 13,
+                              ),
+                            ),
+                          ),
+                        ],
+                      )
+                    else
                       GestureDetector(
                         onTap: onReport,
                         child: const Padding(

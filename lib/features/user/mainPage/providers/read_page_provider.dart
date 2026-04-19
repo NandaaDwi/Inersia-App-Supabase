@@ -238,6 +238,16 @@ class CommentWriteNotifier extends StateNotifier<AsyncValue<void>> {
       state = AsyncValue.error(e, s);
     }
   }
+
+  Future<void> deleteComment(String commentId, String articleId) async {
+    state = const AsyncValue.loading();
+    try {
+      await _svc.deleteComment(commentId, articleId);
+      state = const AsyncValue.data(null);
+    } catch (e, s) {
+      state = AsyncValue.error(e, s);
+    }
+  }
 }
 
 final commentWriteProvider =
