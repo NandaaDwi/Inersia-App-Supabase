@@ -354,7 +354,7 @@ class _CategoryChip extends StatelessWidget {
           style: TextStyle(
             color: isSelected ? Colors.white : const Color(0xFF9CA3AF),
             fontSize: 13,
-            fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
+            fontWeight: isSelected ? FontWeight.bold : FontWeight.w900,
           ),
         ),
       ),

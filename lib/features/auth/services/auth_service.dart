@@ -26,7 +26,7 @@ class AuthService {
       email: email,
       password: password,
       data: {'name': name.trim(), 'username': username.trim().toLowerCase()},
-      emailRedirectTo: 'io.supabase.flutter://login',
+      emailRedirectTo: 'inersia-app://login',
     );
   }
 

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
+import 'package:inersia_supabase/utils/error_network.dart';
 import '../providers/admin_report_provider.dart';
 import '../widgets/report_filter_bar.dart';
 import '../widgets/report_card.dart';
@@ -60,9 +61,29 @@ class AdminReportScreen extends ConsumerWidget {
                 ),
               ),
               error: (e, _) => Center(
-                child: Text(
-                  'Error: $e',
-                  style: const TextStyle(color: Color(0xFF6B7280)),
+                child: Padding(
+                  padding: const EdgeInsets.all(20.0),
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      const Icon(
+                        Icons.cloud_off,
+                        size: 48,
+                        color: Color(0xFF6B7280),
+                      ),
+                      const SizedBox(height: 16),
+                      Text(
+                        getReadableErrorMessage(e),
+                        textAlign: TextAlign.center,
+                        style: const TextStyle(color: Color(0xFF6B7280)),
+                      ),
+                      const SizedBox(height: 16),
+                      ElevatedButton(
+                        onPressed: () => ref.refresh(reportsStreamProvider),
+                        child: const Text('Coba Lagi'),
+                      ),
+                    ],
+                  ),
                 ),
               ),
             ),

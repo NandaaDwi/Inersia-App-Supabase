@@ -56,7 +56,7 @@ class LoginScreen extends StatelessWidget {
                   child: Text(
                     'Masuk untuk melanjutkan perjalanan kreatifmu.',
                     textAlign: TextAlign.center,
-                    style: TextStyle(color: Colors.white70, fontSize: 14),
+                    style: TextStyle(color: Colors.white, fontSize: 14),
                   ),
                 ),
                 const SizedBox(height: 20),

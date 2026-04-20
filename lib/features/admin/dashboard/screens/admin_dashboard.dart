@@ -21,9 +21,7 @@ class AdminDashboard extends ConsumerWidget {
           color: const Color(0xFF3F7AF6),
           backgroundColor: const Color(0xFF1A1A2E),
           strokeWidth: 2.5,
-          onRefresh: () async {
-            return ref.refresh(dashboardStatsProvider);
-          },
+          onRefresh: () async => ref.refresh(dashboardStatsProvider),
           child: SingleChildScrollView(
             physics: const AlwaysScrollableScrollPhysics(),
             padding: const EdgeInsets.fromLTRB(16, 8, 16, 32),
@@ -35,9 +33,9 @@ class AdminDashboard extends ConsumerWidget {
                 const SizedBox(height: 10),
                 StatsGrid(stats: stats),
                 const SizedBox(height: 24),
-                const _SectionLabel('Artikel Dibuat (Per Minggu)'),
+                const _SectionLabel('Artikel Dibuat (7 Hari Terakhir)'),
                 const SizedBox(height: 10),
-                WeeklyChart(points: stats.weeklyArticles),
+                WeeklyChart(points: stats.dailyArticles),
                 const SizedBox(height: 24),
                 const _SectionLabel('Kelola'),
                 const SizedBox(height: 10),
@@ -78,30 +76,28 @@ class _ErrorState extends StatelessWidget {
   const _ErrorState({required this.onRetry});
 
   @override
-  Widget build(BuildContext context) {
-    return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          const Icon(Icons.error_outline, color: Color(0xFF6B7280), size: 48),
-          const SizedBox(height: 12),
-          const Text(
-            'Gagal memuat data',
-            style: TextStyle(color: Color(0xFF6B7280)),
-          ),
-          const SizedBox(height: 16),
-          ElevatedButton(
-            onPressed: onRetry,
-            style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFF3F7AF6),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(8),
-              ),
+  Widget build(BuildContext context) => Center(
+    child: Column(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        const Icon(Icons.error_outline, color: Color(0xFF6B7280), size: 48),
+        const SizedBox(height: 12),
+        const Text(
+          'Gagal memuat data',
+          style: TextStyle(color: Color(0xFF6B7280)),
+        ),
+        const SizedBox(height: 16),
+        ElevatedButton(
+          onPressed: onRetry,
+          style: ElevatedButton.styleFrom(
+            backgroundColor: const Color(0xFF3F7AF6),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(8),
             ),
-            child: const Text('Coba Lagi'),
           ),
-        ],
-      ),
-    );
-  }
+          child: const Text('Coba Lagi'),
+        ),
+      ],
+    ),
+  );
 }

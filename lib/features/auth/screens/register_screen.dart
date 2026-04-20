@@ -67,7 +67,7 @@ class RegisterScreen extends StatelessWidget {
                           const Text(
                             "Bergabunglah dengan penulis Inersia",
                             style: TextStyle(
-                              color: Colors.white70,
+                              color: Colors.white,
                               fontSize: 16,
                             ),
                           ),

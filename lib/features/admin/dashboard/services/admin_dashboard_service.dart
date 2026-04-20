@@ -6,7 +6,7 @@ class DashboardStats {
   final int totalComments;
   final int totalTags;
   final int pendingReports;
-  final List<WeeklyPoint> weeklyArticles;
+  final List<DailyPoint> dailyArticles;
 
   const DashboardStats({
     required this.totalUsers,
@@ -14,20 +14,28 @@ class DashboardStats {
     required this.totalComments,
     required this.totalTags,
     required this.pendingReports,
-    required this.weeklyArticles,
+    required this.dailyArticles,
   });
 }
 
-class WeeklyPoint {
+class DailyPoint {
   final String label;
-  final DateTime weekStart;
+
+  final DateTime date;
+
   final int count;
-  const WeeklyPoint({
+
+  final bool isToday;
+
+  const DailyPoint({
     required this.label,
-    required this.weekStart,
+    required this.date,
     required this.count,
+    required this.isToday,
   });
 }
+
+typedef WeeklyPoint = DailyPoint;
 
 class AdminDashboardService {
   final _client = supabaseConfig.client;
@@ -39,7 +47,7 @@ class AdminDashboardService {
       _count('comments'),
       _count('tags'),
       _countWhere('reports', 'status', 'pending'),
-      _getWeeklyArticles(),
+      getDailyArticles(),
     ]);
 
     return DashboardStats(
@@ -48,70 +56,41 @@ class AdminDashboardService {
       totalComments: results[2] as int,
       totalTags: results[3] as int,
       pendingReports: results[4] as int,
-      weeklyArticles: results[5] as List<WeeklyPoint>,
+      dailyArticles: results[5] as List<DailyPoint>,
     );
   }
 
-  Future<int> _count(String table) async {
-    final res = await _client.from(table).select('id').count();
-    return res.count;
-  }
-
-  Future<int> _countWhere(String table, String col, String val) async {
-    final res = await _client.from(table).select('id').eq(col, val).count();
-    return res.count;
-  }
-
-  Future<List<WeeklyPoint>> _getWeeklyArticles() async {
+  Future<List<DailyPoint>> getDailyArticles() async {
     final now = DateTime.now();
-    final thisMonday = now.subtract(Duration(days: now.weekday - 1));
-    final startOfThisWeek = DateTime(
-      thisMonday.year,
-      thisMonday.month,
-      thisMonday.day,
-    );
+    final today = DateTime(now.year, now.month, now.day);
+    final from = today.subtract(const Duration(days: 6));
+    final until = today.add(const Duration(days: 1));
 
-    final cutoff = startOfThisWeek.subtract(const Duration(days: 42));
-    final res = await _client
+    final rows = await _client
         .from('articles')
         .select('created_at')
-        .gte('created_at', cutoff.toIso8601String())
-        .lte('created_at', now.toIso8601String());
+        .gte('created_at', from.toUtc().toIso8601String())
+        .lt('created_at', until.toUtc().toIso8601String());
 
-    final Map<int, int> countByWeekIndex = {};
-    for (final row in res as List) {
+    final Map<String, int> countByDate = {};
+    for (final row in rows as List) {
       final dt = DateTime.parse(row['created_at'] as String).toLocal();
-      final daysDiff = dt.difference(startOfThisWeek).inDays;
-      final monday = dt.subtract(Duration(days: dt.weekday - 1));
-      final mondayNormalized = DateTime(monday.year, monday.month, monday.day);
-      final weekOffset =
-          mondayNormalized.difference(startOfThisWeek).inDays ~/ 7;
-      countByWeekIndex[weekOffset] = (countByWeekIndex[weekOffset] ?? 0) + 1;
+      final key =
+          '${dt.year}-${dt.month.toString().padLeft(2, '0')}-${dt.day.toString().padLeft(2, '0')}';
+      countByDate[key] = (countByDate[key] ?? 0) + 1;
     }
 
-    final months = [
-      'Jan',
-      'Feb',
-      'Mar',
-      'Apr',
-      'Mei',
-      'Jun',
-      'Jul',
-      'Ags',
-      'Sep',
-      'Okt',
-      'Nov',
-      'Des',
-    ];
-
     return List.generate(7, (i) {
-      final offset = i - 6; // -6, -5, ..., 0
-      final weekStart = startOfThisWeek.add(Duration(days: offset * 7));
-      final label = '${weekStart.day} ${months[weekStart.month - 1]}';
-      return WeeklyPoint(
-        label: label,
-        weekStart: weekStart,
-        count: countByWeekIndex[offset] ?? 0,
+      final date = from.add(Duration(days: i));
+      final key =
+          '${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}';
+      final isToday = i == 6;
+
+      return DailyPoint(
+        label: _dayLabel(date, isToday: isToday),
+        date: date,
+        count: countByDate[key] ?? 0,
+        isToday: isToday,
       );
     });
   }
@@ -129,5 +108,22 @@ class AdminDashboardService {
         .update({'is_read': true})
         .eq('receiver_id', adminId)
         .eq('is_read', false);
+  }
+
+  Future<int> _count(String table) async {
+    final res = await _client.from(table).select('id').count();
+    return res.count;
+  }
+
+  Future<int> _countWhere(String table, String col, String val) async {
+    final res = await _client.from(table).select('id').eq(col, val).count();
+    return res.count;
+  }
+
+  static String _dayLabel(DateTime date, {required bool isToday}) {
+    if (isToday) return 'Hari ini';
+    const dayNames = ['Sen', 'Sel', 'Rab', 'Kam', 'Jum', 'Sab', 'Min'];
+    final name = dayNames[date.weekday - 1];
+    return '$name ${date.day}';
   }
 }
