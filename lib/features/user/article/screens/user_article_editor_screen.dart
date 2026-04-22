@@ -1,12 +1,3 @@
-// lib/features/user/article/screens/user_article_editor_screen.dart
-//
-// Widget yang dipisah dalam file ini (kamu bisa cut ke file terpisah):
-//   3. _EditorTagInput      →
-//   4. _EditorDiscardDialog → editor_discard_dialog.dart
-//   5. _SuggestTile         → editor_suggest_tile.dart
-//   6. _LoadRow             → editor_load_row.dart
-//   7. _SLabel (function)   → editor_label.dart
-//
 import 'dart:convert';
 import 'dart:io';
 import 'package:flutter/material.dart';
@@ -66,7 +57,6 @@ class UserArticleEditorScreen extends HookConsumerWidget {
     useListenable(quillCtrl);
     useEffect(() => quillCtrl.dispose, const []);
 
-    // Tandai ada perubahan
     useEffect(() {
       void onChange() => hasChanges.value = true;
       quillCtrl.addListener(onChange);
@@ -77,7 +67,6 @@ class UserArticleEditorScreen extends HookConsumerWidget {
       };
     }, const []);
 
-    // Load nama kategori saat edit
     useEffect(() {
       if (article != null && article!.categoryId.isNotEmpty) {
         isCategoryLoading.value = true;
@@ -93,7 +82,6 @@ class UserArticleEditorScreen extends HookConsumerWidget {
       return null;
     }, [article?.categoryId]);
 
-    // ── Konfirmasi keluar ───────────────────────────────────
     Future<bool> confirmDiscard() async {
       if (!hasChanges.value) return true;
       final r = await showDialog<bool>(
@@ -104,7 +92,6 @@ class UserArticleEditorScreen extends HookConsumerWidget {
       return r ?? false;
     }
 
-    // ── Simpan artikel ──────────────────────────────────────
     Future<void> handleSave(String status) async {
       final title = titleCtrl.text.trim();
       final plain = quillCtrl.document.toPlainText().trim();
@@ -203,7 +190,6 @@ class UserArticleEditorScreen extends HookConsumerWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // ── Thumbnail ─────────────────────────────────
               EditorThumbPicker(
                 thumbnail: thumbnail,
                 article: article,
@@ -211,7 +197,6 @@ class UserArticleEditorScreen extends HookConsumerWidget {
               ),
               const SizedBox(height: 24),
 
-              // ── Judul ─────────────────────────────────────
               TextField(
                 controller: titleCtrl,
                 style: const TextStyle(
@@ -232,7 +217,6 @@ class UserArticleEditorScreen extends HookConsumerWidget {
               const Divider(color: Color(0xFF161616), height: 1),
               const SizedBox(height: 20),
 
-              // ── Kategori ──────────────────────────────────
               SLabel(label: 'KATEGORI'),
               const SizedBox(height: 8),
               EditorCategoryInput(
@@ -244,7 +228,6 @@ class UserArticleEditorScreen extends HookConsumerWidget {
               ),
               const SizedBox(height: 20),
 
-              // ── Tag ───────────────────────────────────────
               Row(
                 children: [
                   SLabel(label: 'TAG'),
@@ -270,7 +253,6 @@ class UserArticleEditorScreen extends HookConsumerWidget {
               ),
               const SizedBox(height: 24),
 
-              // ── Editor konten ─────────────────────────────
               EditorRichText(
                 controller: quillCtrl,
                 scrollController: editorScrollCtrl,
@@ -302,13 +284,6 @@ class UserArticleEditorScreen extends HookConsumerWidget {
         ),
       );
 }
-
-// ═══════════════════════════════════════════════════════════════
-// WIDGET TERPISAH — bisa di-cut ke file masing-masing
-// ═══════════════════════════════════════════════════════════════
-
-// ─── 1. AppBar ────────────────────────────────────────────────
-// → Bisa jadi: editor_app_bar.dart
 
 class _EditorAppBar extends StatelessWidget implements PreferredSizeWidget {
   final bool isEdit;
@@ -400,26 +375,6 @@ class _EditorAppBar extends StatelessWidget implements PreferredSizeWidget {
     ],
   );
 }
-
-// ─── 2. Thumb Picker ──────────────────────────────────────────
-// → Bisa jadi: editor_thumb_picker.dart
-
-// ─── 3. Category Input ────────────────────────────────────────
-// → Bisa jadi: editor_category_input.dart
-
-// ─── 4. Tag Input ─────────────────────────────────────────────
-// → Bisa jadi: editor_tag_input.dart
-
-// ─── 5. Discard Dialog ────────────────────────────────────────
-// → Bisa jadi: editor_discard_dialog.dart
-
-// ─── 6. Suggest Tile ──────────────────────────────────────────
-// → Bisa jadi: editor_suggest_tile.dart
-
-// ─── 7. Load Row ──────────────────────────────────────────────
-// → Bisa jadi: editor_load_row.dart
-
-// ─── Shared helpers ───────────────────────────────────────────
 
 InputDecoration _inputDeco(String hint) => InputDecoration(
   hintText: hint,

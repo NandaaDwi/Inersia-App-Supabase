@@ -43,6 +43,10 @@ class AuthErrorHandler {
       return 'Akun kamu telah dinonaktifkan oleh admin. Hubungi support untuk bantuan.';
     }
 
+    if (msg.contains('inactive') || msg.contains('inactive')) {
+      return 'Akun kamu telah dinonaktifkan oleh admin. Hubungi support untuk bantuan.';
+    }
+
     if (msg.contains('user not found') || msg.contains('no user')) {
       return 'Akun dengan email ini tidak ditemukan. Coba daftar terlebih dahulu.';
     }

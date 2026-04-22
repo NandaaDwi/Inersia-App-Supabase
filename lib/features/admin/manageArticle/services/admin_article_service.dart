@@ -6,27 +6,43 @@ import 'package:inersia_supabase/models/tag_model.dart';
 class AdminArticleService {
   final _client = supabaseConfig.client;
 
+  static const int pageSize = 15;
+
   Future<List<ArticleModel>> getArticles({
     int page = 0,
     String query = '',
     String? status,
   }) async {
-    final from = page * 10;
-    final to = from + 9;
+    final from = page * pageSize;
+    final to = from + pageSize - 1; 
 
-    var request = _client.from('articles').select('''
-      *,
-      categories(*),
-      article_tags(tags(*)),
-      users:author_id(*)
+    var req = _client.from('articles').select('''
+      id,
+      author_id,
+      title,
+      thumbnail,
+      status,
+      category_id,
+      estimated_reading,
+      like_count,
+      comment_count,
+      view_count,
+      created_at,
+      updated_at,
+      content,
+      users:author_id(name, photo_url),
+      categories:category_id(name)
     ''');
 
-    if (query.isNotEmpty) request = request.ilike('title', '%$query%');
-    if (status != null) request = request.eq('status', status);
+    if (query.trim().isNotEmpty) {
+      req = req.ilike('title', '%${query.trim()}%');
+    }
 
-    final res = await request
-        .order('created_at', ascending: false)
-        .range(from, to);
+    if (status != null) {
+      req = req.eq('status', status);
+    }
+
+    final res = await req.order('created_at', ascending: false).range(from, to);
 
     return (res as List).map((e) => ArticleModel.fromJson(e)).toList();
   }
@@ -47,6 +63,7 @@ class AdminArticleService {
     required String status,
   }) async {
     final userId = _client.auth.currentUser!.id;
+    final wordCount = content.split(' ').length;
     final data = {
       'author_id': userId,
       'title': title,
@@ -54,7 +71,7 @@ class AdminArticleService {
       'thumbnail': thumbnail,
       'category_id': categoryId,
       'status': status,
-      'estimated_reading': (content.split(' ').length / 200).ceil(),
+      'estimated_reading': (wordCount / 200).ceil().clamp(1, 999),
     };
 
     final articleRes = id == null
@@ -69,12 +86,14 @@ class AdminArticleService {
     final String articleId = articleRes['id'] as String;
 
     await _client.from('article_tags').delete().eq('article_id', articleId);
-
     if (tagIds.isNotEmpty) {
-      final pivotRows = tagIds
-          .map((tid) => {'article_id': articleId, 'tag_id': tid})
-          .toList();
-      await _client.from('article_tags').insert(pivotRows);
+      await _client
+          .from('article_tags')
+          .insert(
+            tagIds
+                .map((tid) => {'article_id': articleId, 'tag_id': tid})
+                .toList(),
+          );
     }
   }
 
@@ -85,7 +104,6 @@ class AdminArticleService {
         .select()
         .ilike('name', normalized)
         .maybeSingle();
-
     if (existing != null) return TagModel.fromJson(existing);
 
     final res = await _client

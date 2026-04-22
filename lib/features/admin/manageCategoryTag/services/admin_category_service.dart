@@ -2,7 +2,7 @@ import 'package:inersia_supabase/config/supabase_config.dart';
 import 'package:inersia_supabase/models/category_model.dart';
 
 class AdminCategoryService {
-  final _db = supabaseConfig.client;
+  final _client = supabaseConfig.client;
 
   Future<List<CategoryModel>> getCategories({
     int page = 0,
@@ -11,7 +11,7 @@ class AdminCategoryService {
     final from = page * 10;
     final to = from + 9;
 
-    var request = _db.from('categories').select();
+    var request = _client.from('categories').select();
 
     if (query.isNotEmpty) {
       request = request.or('name.ilike.%$query%');
@@ -25,18 +25,18 @@ class AdminCategoryService {
   Future<void> upsertCategory(String? id, String name) async {
     final data = {'name': name};
     if (id == null) {
-      await _db.from('categories').insert(data);
+      await _client.from('categories').insert(data);
     } else {
-      await _db.from('categories').update(data).eq('id', id);
+      await _client.from('categories').update(data).eq('id', id);
     }
   }
 
   Future<void> deleteCategory(String id) async {
-    await _db.from('categories').delete().eq('id', id);
+    await _client.from('categories').delete().eq('id', id);
   }
 
   Future<CategoryModel?> getCategoryById(String id) async {
-    final res = await _db
+    final res = await _client
         .from('categories')
         .select()
         .eq('id', id)

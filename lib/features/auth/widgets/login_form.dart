@@ -171,14 +171,14 @@ class _AuthField extends StatelessWidget {
       decoration: InputDecoration(
         filled: true,
         fillColor: const Color(0xFF1E1E1E),
-        prefixIcon: Icon(icon, color: Colors.white54, size: 22),
+        prefixIcon: Icon(icon, color: Colors.white70, size: 22),
         suffixIcon: isPassword
             ? IconButton(
                 icon: Icon(
                   obscureText
                       ? Icons.visibility_outlined
                       : Icons.visibility_off_outlined,
-                  color: Colors.white54,
+                  color: Colors.white70,
                 ),
                 onPressed: onToggle,
               )

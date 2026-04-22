@@ -85,26 +85,30 @@ class RegisterForm extends HookConsumerWidget {
               ),
             ),
             const SizedBox(width: 12),
-            Expanded(
-              child: GestureDetector(
-                onTap: () => isPolicyAccepted.value = !isPolicyAccepted.value,
-                child: const Text.rich(
-                  TextSpan(
-                    style: TextStyle(color: Colors.white70, fontSize: 13),
-                    children: [
-                      TextSpan(text: 'Saya setuju dengan '),
-                      TextSpan(
-                        text: 'Kebijakan Privasi',
-                        style: TextStyle(
-                          color: Color(0xFF3F7AF6),
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                      TextSpan(text: ' yang berlaku.'),
-                    ],
+            Wrap(
+              children: [
+                const Text(
+                  'Saya setuju dengan ',
+                  style: TextStyle(color: Colors.white70, fontSize: 13),
+                ),
+                GestureDetector(
+                  onTap: () {
+                    context.push('/privasi-policy');
+                  },
+                  child: const Text(
+                    'Kebijakan Privasi',
+                    style: TextStyle(
+                      color: Color(0xFF3F7AF6),
+                      fontWeight: FontWeight.bold,
+                      decoration: TextDecoration.underline,
+                    ),
                   ),
                 ),
-              ),
+                const Text(
+                  ' yang berlaku.',
+                  style: TextStyle(color: Colors.white70, fontSize: 13),
+                ),
+              ],
             ),
           ],
         ),
@@ -326,14 +330,14 @@ class _RegField extends StatelessWidget {
     decoration: InputDecoration(
       filled: true,
       fillColor: const Color(0xFF1E1E1E),
-      prefixIcon: Icon(icon, color: Colors.white54, size: 22),
+      prefixIcon: Icon(icon, color: Colors.white70, size: 22),
       suffixIcon: isPassword
           ? IconButton(
               icon: Icon(
                 obscureText
                     ? Icons.visibility_outlined
                     : Icons.visibility_off_outlined,
-                color: Colors.white54,
+                color: Colors.white70,
               ),
               onPressed: onToggle,
             )

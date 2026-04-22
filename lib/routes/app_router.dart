@@ -12,6 +12,7 @@ import 'package:inersia_supabase/features/admin/manageCategoryTag/screens/taxono
 import 'package:inersia_supabase/features/admin/manageUser/screens/user_management_screen.dart';
 import 'package:inersia_supabase/features/auth/screens/forgot_password_screen.dart';
 import 'package:inersia_supabase/features/auth/screens/login_screen.dart';
+import 'package:inersia_supabase/features/auth/screens/privacy_policy_screen.dart';
 import 'package:inersia_supabase/features/auth/screens/register_screen.dart';
 import 'package:inersia_supabase/features/auth/screens/reset_password_screen.dart';
 import 'package:inersia_supabase/features/auth/screens/verify_otp_screen.dart';
@@ -60,7 +61,8 @@ final routerProvider = Provider<GoRouter>((ref) {
           location == '/register' ||
           location == '/forgot-password' ||
           location == '/verify-otp' ||
-          location == '/reset-password';
+          location == '/reset-password'||
+          location == '/privasi-policy';
 
       if (!isAuthenticated) {
         return isAuthRoute ? null : '/login';
@@ -108,6 +110,11 @@ final routerProvider = Provider<GoRouter>((ref) {
         path: '/register',
         pageBuilder: (context, state) =>
             _buildPage(state: state, child: const RegisterScreen()),
+      ),
+      GoRoute(
+        path: '/privasi-policy',
+        pageBuilder: (context, state) =>
+            _buildPage(state: state, child: const PrivacyPolicyScreen()),
       ),
       GoRoute(
         path: '/forgot-password',

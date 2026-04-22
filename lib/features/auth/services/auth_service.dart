@@ -48,6 +48,10 @@ class AuthService {
           await logout();
           throw const AuthException('user_banned');
         }
+        if (userData['status'] == 'inactive') {
+          await logout();
+          throw const AuthException('inactive');
+        }
       } catch (e) {
         if (e is AuthException) rethrow;
       }

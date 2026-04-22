@@ -205,16 +205,6 @@ class SearchNotifier extends StateNotifier<SearchState> {
       clearError: true,
     );
   }
-
-  void removeFromHistory(String item) {
-    state = state.copyWith(
-      history: state.history.where((h) => h != item).toList(),
-    );
-  }
-
-  void clearHistory() {
-    state = state.copyWith(history: []);
-  }
 }
 
 final searchProvider =

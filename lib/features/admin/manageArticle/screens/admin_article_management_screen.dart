@@ -8,12 +8,41 @@ import 'package:inersia_supabase/features/admin/manageArticle/widgets/admin_arti
 import 'package:inersia_supabase/models/article_model.dart';
 import 'package:inersia_supabase/utils/dateUtills.dart';
 
-class AdminArticleManagementScreen extends ConsumerWidget {
+class AdminArticleManagementScreen extends ConsumerStatefulWidget {
   const AdminArticleManagementScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final articlesAsync = ref.watch(adminArticlesProvider);
+  ConsumerState<AdminArticleManagementScreen> createState() =>
+      _AdminArticleManagementScreenState();
+}
+
+class _AdminArticleManagementScreenState
+    extends ConsumerState<AdminArticleManagementScreen> {
+  final _scrollCtrl = ScrollController();
+
+  @override
+  void initState() {
+    super.initState();
+    _scrollCtrl.addListener(_onScroll);
+  }
+
+  @override
+  void dispose() {
+    _scrollCtrl.dispose();
+    super.dispose();
+  }
+
+  void _onScroll() {
+    if (!_scrollCtrl.hasClients) return;
+    final position = _scrollCtrl.position;
+    if (position.pixels >= position.maxScrollExtent - 200) {
+      ref.read(adminArticlesProvider.notifier).loadMore();
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final state = ref.watch(adminArticlesProvider);
 
     return Scaffold(
       backgroundColor: const Color(0xFF0D0D0D),
@@ -72,55 +101,88 @@ class AdminArticleManagementScreen extends ConsumerWidget {
       body: Column(
         children: [
           const AdminArticleSearchBar(),
-          Expanded(
-            child: articlesAsync.when(
-              data: (list) => list.isEmpty
-                  ? const _EmptyState()
-                  : RefreshIndicator(
-                      color: const Color(0xFF2563EB),
-                      backgroundColor: const Color(0xFF161616),
-                      onRefresh: () =>
-                          ref.read(adminArticlesProvider.notifier).refresh(),
-                      child: ListView.separated(
-                        padding: const EdgeInsets.fromLTRB(16, 8, 16, 40),
-                        itemCount: list.length,
-                        separatorBuilder: (_, __) => const SizedBox(height: 12),
-                        itemBuilder: (_, i) => _ArticleCard(article: list[i]),
-                      ),
-                    ),
-              loading: () => const Center(
-                child: CircularProgressIndicator(color: Color(0xFF2563EB)),
-              ),
-              error: (e, _) => Center(
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    const Icon(
-                      Icons.error_outline,
-                      color: Color(0xFF374151),
-                      size: 48,
-                    ),
-                    const SizedBox(height: 12),
-                    Text(
-                      'Gagal memuat: $e',
-                      style: const TextStyle(color: Color(0xFF6B7280)),
-                      textAlign: TextAlign.center,
-                    ),
-                    const SizedBox(height: 16),
-                    ElevatedButton(
-                      onPressed: () =>
-                          ref.read(adminArticlesProvider.notifier).refresh(),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFF2563EB),
-                      ),
-                      child: const Text('Coba Lagi'),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ),
+          Expanded(child: _buildBody(state)),
         ],
+      ),
+    );
+  }
+
+  Widget _buildBody(AdminArticleState state) {
+    if (state.isLoading) {
+      return const Center(
+        child: CircularProgressIndicator(color: Color(0xFF2563EB)),
+      );
+    }
+
+    if (state.error != null && state.articles.isEmpty) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const Icon(Icons.error_outline, color: Color(0xFF374151), size: 48),
+            const SizedBox(height: 12),
+            Text(
+              state.error!,
+              style: const TextStyle(color: Color(0xFF6B7280)),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 16),
+            ElevatedButton(
+              onPressed: () =>
+                  ref.read(adminArticlesProvider.notifier).refresh(),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF2563EB),
+              ),
+              child: const Text('Coba Lagi'),
+            ),
+          ],
+        ),
+      );
+    }
+
+    if (state.articles.isEmpty) {
+      return const _EmptyState();
+    }
+
+    return RefreshIndicator(
+      color: const Color(0xFF2563EB),
+      backgroundColor: const Color(0xFF161616),
+      onRefresh: () => ref.read(adminArticlesProvider.notifier).refresh(),
+      child: ListView.separated(
+        controller: _scrollCtrl,
+        physics: const AlwaysScrollableScrollPhysics(),
+        padding: const EdgeInsets.fromLTRB(16, 8, 16, 40),
+        itemCount: state.articles.length + 1,
+        separatorBuilder: (_, __) => const SizedBox(height: 12),
+        itemBuilder: (_, i) {
+          if (i == state.articles.length) {
+            if (state.isLoadingMore) {
+              return const Padding(
+                padding: EdgeInsets.symmetric(vertical: 20),
+                child: Center(
+                  child: CircularProgressIndicator(
+                    color: Color(0xFF2563EB),
+                    strokeWidth: 2,
+                  ),
+                ),
+              );
+            }
+            if (!state.hasMore) {
+              return const Padding(
+                padding: EdgeInsets.symmetric(vertical: 16),
+                child: Center(
+                  child: Text(
+                    'Semua artikel sudah ditampilkan',
+                    style: TextStyle(color: Color(0xFF4B5563), fontSize: 12),
+                  ),
+                ),
+              );
+            }
+            return const SizedBox(height: 8);
+          }
+
+          return _ArticleCard(article: state.articles[i]);
+        },
       ),
     );
   }
@@ -199,43 +261,7 @@ class _ArticleCard extends ConsumerWidget {
                 Positioned(
                   top: 10,
                   left: 10,
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 8,
-                      vertical: 4,
-                    ),
-                    decoration: BoxDecoration(
-                      color: isOwnArticle
-                          ? const Color(0xFF1E3A5F)
-                          : Colors.black.withOpacity(0.55),
-                      borderRadius: BorderRadius.circular(20),
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(
-                          isOwnArticle
-                              ? Icons.verified_rounded
-                              : Icons.person_outline_rounded,
-                          size: 11,
-                          color: isOwnArticle
-                              ? const Color(0xFF60A5FA)
-                              : const Color(0xFF9CA3AF),
-                        ),
-                        const SizedBox(width: 4),
-                        Text(
-                          isOwnArticle ? 'Admin' : 'User',
-                          style: TextStyle(
-                            color: isOwnArticle
-                                ? const Color(0xFF60A5FA)
-                                : const Color(0xFF9CA3AF),
-                            fontSize: 10,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
+                  child: _AuthorBadge(isOwnArticle: isOwnArticle),
                 ),
               ],
             ),
@@ -246,145 +272,19 @@ class _ArticleCard extends ConsumerWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Row(
-                  children: [
-                    CircleAvatar(
-                      radius: 11,
-                      backgroundColor: const Color(0xFF1F2937),
-                      backgroundImage: article.authorPhoto != null
-                          ? NetworkImage(article.authorPhoto!)
-                          : null,
-                      child: article.authorPhoto == null
-                          ? Text(
-                              article.authorName.isNotEmpty
-                                  ? article.authorName[0].toUpperCase()
-                                  : 'U',
-                              style: const TextStyle(
-                                color: Colors.white,
-                                fontSize: 9,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            )
-                          : null,
-                    ),
-                    const SizedBox(width: 6),
-                    Expanded(
-                      child: Text(
-                        article.authorName,
-                        style: const TextStyle(
-                          color: Color(0xFF9CA3AF),
-                          fontSize: 12,
-                        ),
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ),
-                    const Icon(
-                      Icons.remove_red_eye_outlined,
-                      size: 12,
-                      color: Color(0xFF6B7280),
-                    ),
-                    const SizedBox(width: 3),
-                    Text(
-                      '${article.viewCount}',
-                      style: const TextStyle(
-                        color: Color(0xFF6B7280),
-                        fontSize: 11,
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    Text(
-                      AppDateUtils.formatDate(article.createdAt),
-                      style: const TextStyle(
-                        color: Color(0xFF4B5563),
-                        fontSize: 11,
-                      ),
-                    ),
-                  ],
-                ),
+                _MetaRow(article: article),
                 const SizedBox(height: 12),
-
                 if (isOwnArticle)
-                  Row(
-                    children: [
-                      Expanded(
-                        child: _Btn(
-                          label: 'Edit',
-                          icon: Icons.edit_rounded,
-                          bg: const Color(0xFF1E3A5F),
-                          fg: const Color(0xFF60A5FA),
-                          onTap: () => Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (_) =>
-                                  ArticleEditorScreen(article: article),
-                            ),
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: _Btn(
-                          label: 'Hapus',
-                          icon: Icons.delete_outline_rounded,
-                          bg: const Color(0xFF2A0000),
-                          fg: const Color(0xFFEF4444),
-                          onTap: () => _deleteDialog(context, ref),
-                        ),
-                      ),
-                    ],
+                  _OwnArticleActions(
+                    article: article,
+                    onDelete: () => _deleteDialog(context, ref),
                   )
                 else
-                  Column(
-                    children: [
-                      Row(
-                        children: [
-                          Expanded(
-                            child: _Btn(
-                              label: 'Lihat',
-                              icon: Icons.visibility_rounded,
-                              bg: const Color(0xFF1F2937),
-                              fg: const Color(0xFF9CA3AF),
-                              onTap: () => Navigator.push(
-                                context,
-                                MaterialPageRoute(
-                                  builder: (_) =>
-                                      AdminArticleViewScreen(article: article),
-                                ),
-                              ),
-                            ),
-                          ),
-                          const SizedBox(width: 8),
-                          Expanded(
-                            child: _Btn(
-                              label: 'Peringatkan',
-                              icon: Icons.warning_amber_rounded,
-                              bg: const Color(0xFF2D1A00),
-                              fg: const Color(0xFFFBBF24),
-                              onTap: () => _warnDialog(context, ref),
-                            ),
-                          ),
-                          const SizedBox(width: 8),
-                          Expanded(
-                            child: _Btn(
-                              label: 'Hapus',
-                              icon: Icons.delete_outline_rounded,
-                              bg: const Color(0xFF2A0000),
-                              fg: const Color(0xFFEF4444),
-                              onTap: () => _deleteDialog(context, ref),
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 8),
-                      _Btn(
-                        label: 'Ban Pengguna',
-                        icon: Icons.block_rounded,
-                        bg: const Color(0xFF1A0000),
-                        fg: const Color(0xFFEF4444),
-                        fullWidth: true,
-                        onTap: () => _banDialog(context, ref),
-                      ),
-                    ],
+                  _OtherArticleActions(
+                    article: article,
+                    onWarn: () => _warnDialog(context, ref),
+                    onDelete: () => _deleteDialog(context, ref),
+                    onBan: () => _banDialog(context, ref),
                   ),
               ],
             ),
@@ -411,7 +311,7 @@ class _ArticleCard extends ConsumerWidget {
       builder: (ctx) => _ConfirmDialog(
         title: 'Hapus Artikel?',
         message:
-            '"${article.title}" akan dihapus permanen beserta semua komentar dan data terkaitnya.',
+            '"${article.title}" akan dihapus permanen beserta semua komentar dan data terkait.',
         confirmLabel: 'Hapus',
         confirmColor: const Color(0xFFEF4444),
         icon: Icons.delete_forever_rounded,
@@ -426,7 +326,8 @@ class _ArticleCard extends ConsumerWidget {
               client.from('reading_list').delete().eq('article_id', article.id),
             ]);
             await client.from('articles').delete().eq('id', article.id);
-            ref.invalidate(adminArticlesProvider);
+
+            ref.read(adminArticlesProvider.notifier).removeArticle(article.id);
             if (ctx.mounted) Navigator.pop(ctx);
           } catch (e) {
             if (ctx.mounted) {
@@ -531,7 +432,7 @@ class _ArticleCard extends ConsumerWidget {
               'message': msg,
             });
 
-            ref.invalidate(adminArticlesProvider);
+            ref.read(adminArticlesProvider.notifier).refresh();
             if (ctx.mounted) {
               Navigator.pop(ctx);
               ScaffoldMessenger.of(ctx).showSnackBar(
@@ -566,6 +467,200 @@ class _ArticleCard extends ConsumerWidget {
     child: const Center(
       child: Icon(Icons.article_outlined, color: Color(0xFF374151), size: 40),
     ),
+  );
+}
+
+class _AuthorBadge extends StatelessWidget {
+  final bool isOwnArticle;
+  const _AuthorBadge({required this.isOwnArticle});
+
+  @override
+  Widget build(BuildContext context) => Container(
+    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+    decoration: BoxDecoration(
+      color: isOwnArticle
+          ? const Color(0xFF1E3A5F)
+          : Colors.black.withOpacity(0.55),
+      borderRadius: BorderRadius.circular(20),
+    ),
+    child: Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Icon(
+          isOwnArticle ? Icons.verified_rounded : Icons.person_outline_rounded,
+          size: 11,
+          color: isOwnArticle
+              ? const Color(0xFF60A5FA)
+              : const Color(0xFF9CA3AF),
+        ),
+        const SizedBox(width: 4),
+        Text(
+          isOwnArticle ? 'Admin' : 'User',
+          style: TextStyle(
+            color: isOwnArticle
+                ? const Color(0xFF60A5FA)
+                : const Color(0xFF9CA3AF),
+            fontSize: 10,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+      ],
+    ),
+  );
+}
+
+class _MetaRow extends StatelessWidget {
+  final ArticleModel article;
+  const _MetaRow({required this.article});
+
+  @override
+  Widget build(BuildContext context) => Row(
+    children: [
+      CircleAvatar(
+        radius: 11,
+        backgroundColor: const Color(0xFF1F2937),
+        backgroundImage: article.authorPhoto != null
+            ? NetworkImage(article.authorPhoto!)
+            : null,
+        child: article.authorPhoto == null
+            ? Text(
+                article.authorName.isNotEmpty
+                    ? article.authorName[0].toUpperCase()
+                    : 'U',
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 9,
+                  fontWeight: FontWeight.bold,
+                ),
+              )
+            : null,
+      ),
+      const SizedBox(width: 6),
+      Expanded(
+        child: Text(
+          article.authorName,
+          style: const TextStyle(color: Color(0xFF9CA3AF), fontSize: 12),
+          overflow: TextOverflow.ellipsis,
+        ),
+      ),
+      const Icon(
+        Icons.remove_red_eye_outlined,
+        size: 12,
+        color: Color(0xFF6B7280),
+      ),
+      const SizedBox(width: 3),
+      Text(
+        '${article.viewCount}',
+        style: const TextStyle(color: Color(0xFF6B7280), fontSize: 11),
+      ),
+      const SizedBox(width: 8),
+      Text(
+        AppDateUtils.formatDate(article.createdAt),
+        style: const TextStyle(color: Color(0xFF4B5563), fontSize: 11),
+      ),
+    ],
+  );
+}
+
+class _OwnArticleActions extends StatelessWidget {
+  final ArticleModel article;
+  final VoidCallback onDelete;
+  const _OwnArticleActions({required this.article, required this.onDelete});
+
+  @override
+  Widget build(BuildContext context) => Row(
+    children: [
+      Expanded(
+        child: _Btn(
+          label: 'Edit',
+          icon: Icons.edit_rounded,
+          bg: const Color(0xFF1E3A5F),
+          fg: const Color(0xFF60A5FA),
+          onTap: () => Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (_) => ArticleEditorScreen(article: article),
+            ),
+          ),
+        ),
+      ),
+      const SizedBox(width: 8),
+      Expanded(
+        child: _Btn(
+          label: 'Hapus',
+          icon: Icons.delete_outline_rounded,
+          bg: const Color(0xFF2A0000),
+          fg: const Color(0xFFEF4444),
+          onTap: onDelete,
+        ),
+      ),
+    ],
+  );
+}
+
+class _OtherArticleActions extends StatelessWidget {
+  final ArticleModel article;
+  final VoidCallback onWarn;
+  final VoidCallback onDelete;
+  final VoidCallback onBan;
+  const _OtherArticleActions({
+    required this.article,
+    required this.onWarn,
+    required this.onDelete,
+    required this.onBan,
+  });
+
+  @override
+  Widget build(BuildContext context) => Column(
+    children: [
+      Row(
+        children: [
+          Expanded(
+            child: _Btn(
+              label: 'Lihat',
+              icon: Icons.visibility_rounded,
+              bg: const Color(0xFF1F2937),
+              fg: const Color(0xFF9CA3AF),
+              onTap: () => Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => AdminArticleViewScreen(article: article),
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: _Btn(
+              label: 'Peringatkan',
+              icon: Icons.warning_amber_rounded,
+              bg: const Color(0xFF2D1A00),
+              fg: const Color(0xFFFBBF24),
+              onTap: onWarn,
+            ),
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: _Btn(
+              label: 'Hapus',
+              icon: Icons.delete_outline_rounded,
+              bg: const Color(0xFF2A0000),
+              fg: const Color(0xFFEF4444),
+              onTap: onDelete,
+            ),
+          ),
+        ],
+      ),
+      const SizedBox(height: 8),
+      _Btn(
+        label: 'Ban Pengguna',
+        icon: Icons.block_rounded,
+        bg: const Color(0xFF1A0000),
+        fg: const Color(0xFFEF4444),
+        fullWidth: true,
+        onTap: onBan,
+      ),
+    ],
   );
 }
 
@@ -618,12 +713,9 @@ class _Btn extends StatelessWidget {
 }
 
 class _ConfirmDialog extends StatelessWidget {
-  final String title;
-  final String message;
-  final String confirmLabel;
-  final Color confirmColor;
+  final String title, message, confirmLabel;
+  final Color confirmColor, iconColor;
   final IconData icon;
-  final Color iconColor;
   final VoidCallback onConfirm;
 
   const _ConfirmDialog({
@@ -721,14 +813,10 @@ class _ConfirmDialog extends StatelessWidget {
 }
 
 class _InputDialog extends StatelessWidget {
-  final String title;
-  final String message;
-  final String hintText;
+  final String title, message, hintText, confirmLabel;
   final TextEditingController controller;
-  final String confirmLabel;
-  final Color confirmColor;
+  final Color confirmColor, iconColor;
   final IconData icon;
-  final Color iconColor;
   final VoidCallback onConfirm;
 
   const _InputDialog({
@@ -879,6 +967,7 @@ class _InputDialog extends StatelessWidget {
 
 class _EmptyState extends StatelessWidget {
   const _EmptyState();
+
   @override
   Widget build(BuildContext context) => const Center(
     child: Column(
